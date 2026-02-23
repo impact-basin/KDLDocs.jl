@@ -1,0 +1,10 @@
+name = "KDL"
+uuid = "401a1991-251b-4274-8504-ebcf13a74f85"
+version = "0.1.0"
+authors = ["henry eshbaugh <henry.eshbaugh@physics.ox.ac.uk>"]
+
+[deps]
+PikaParser = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
+
+[compat]
+PikaParser = "0.6.1"

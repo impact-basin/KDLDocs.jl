@@ -1,0 +1,28 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.12.5"
+manifest_format = "2.0"
+project_hash = "80c3eb9893340940ec77ab67b6857edce4bf21ec"
+
+[[deps.DocStringExtensions]]
+git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
+uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+version = "0.9.5"
+
+[[deps.KDL]]
+path = "."
+uuid = "401a1991-251b-4274-8504-ebcf13a74f85"
+version = "0.1.0"
+
+[[deps.MacroTools]]
+git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
+uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+version = "0.5.16"
+
+[[deps.PikaParser]]
+deps = ["DocStringExtensions", "MacroTools"]
+git-tree-sha1 = "0c14af6837c3937afdb27e93d8baf4ed304f04f8"
+repo-rev = "master"
+repo-url = "https://github.com/impact-basin/PikaParser.jl"
+uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
+version = "0.6.1"
