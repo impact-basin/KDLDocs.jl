@@ -21,7 +21,7 @@ version = "0.5.16"
 
 [[deps.PikaParser]]
 deps = ["DocStringExtensions", "MacroTools"]
-git-tree-sha1 = "0c14af6837c3937afdb27e93d8baf4ed304f04f8"
+git-tree-sha1 = "cc4d4a9d45113616db89912b86ae4c100441aac5"
 repo-rev = "master"
 repo-url = "https://github.com/impact-basin/PikaParser.jl"
 uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
