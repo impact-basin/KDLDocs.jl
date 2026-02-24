@@ -2,6 +2,7 @@ module KDL
 
 # grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
+using Match
 import PikaParser as P
 
 g = P.@grammar :kdl begin
@@ -16,51 +17,11 @@ g = P.@grammar :kdl begin
     ),
 
     :newline => first(
-        tokens("\u000D\u000A"), # carriage return + newline
-        token('\u000D'),        # carriage return
-        token('\u000A'),        # line feed
-        token('\u0085'),        # next line
-        token('\u000B'),        # vertical tab
-        token('\u000C'),        # form feed
-        token('\u2028'),        # line separator
-        token('\u2029'),        # paragraph separator
+        tokens("\u000D\u000A"),           token('\u000D'),
+        token('\u000A'), token('\u0085'), token('\u000B'),
+        token('\u000C'), token('\u2028'), token('\u2029'),
     ), 
 
-    # escaped newlines, spaces in nodes, and linespace.
-    # TODO: add end of file
-    #=:escline => seq(=#
-    #=    token('\\'),=#
-    #=    maybe(:ws),=#
-    #=    first(=#
-    #=        #=:singleline_comment,=#=#
-    #=        :newline,=#
-    #=        P.end_of_input=#
-    #=    )=#
-    #=),=#
-
-    #=:nodespace => first(=#
-    #=    seq(many(:ws),=#
-    #=        :escline,=#
-    #=    ),=#
-    #=    some(:ws)=#
-    #=),=#
-    :linespace => first(
-        :unicode_space,
-        :newline,
-        :singleline_comment
-    ),
-
-    #=:ws => first(=#
-    #=    :unicode_space,=#
-    #=    :multiline_comment,=#
-    #=),=#
-
-    :slashdash => seq(
-        tokens("/-"),
-        maybe(some(:linespace)),
-    ),
-
-    # NOTE: requires checking.
     :singleline_comment => seq(
         tokens("//"),
         many(seq(
@@ -70,26 +31,20 @@ g = P.@grammar :kdl begin
         :newline,
     ),
 
-    #=:multiline_comment => seq(=#
-    #=    tokens("/*"),=#
-    #=    many(r"(?!\*/).{2}"),=#
-    #=    tokens("*/"),=#
-    #=),=#
+    :multiline_comment => seq(
+        tokens("/*"),
+        many(r"(?!\*/).{2}"),
+        tokens("*/"),
+    ),
 
-    #=:commentblock => first(=#
-    #=    tokens("*/"),=#
-    #=    seq(=#
-    #=        first(=#
-    #=            :multiline_comment,=#
-    #=            token('*'),=#
-    #=            token('/'),=#
-    #=            r"[^*/]+",=#
-    #=        ),=#
-    #=        :commentblock=#
-    #=    ),=#
-    #=),=#
+    :ws => many(first(
+        :multiline_comment,
+        :singleline_comment,
+        :unicode_space,
+        :newline
+    )),
 
-    :bom => maybe(token('\uFEEF')),
+    #=:bom => token('\uFEEF'),=#
 
     :boolean => first(
         tokens("#true"),
@@ -97,8 +52,8 @@ g = P.@grammar :kdl begin
     ),
 
     :keywordnumber => first(
-        tokens("#inf"),
         tokens("#-inf"),
+        tokens("#inf"),
         tokens("#nan")
     ),
 
@@ -109,13 +64,24 @@ g = P.@grammar :kdl begin
 
     :sign => first(
         token('+'),
-        token('-')
+        token('-'),
+        epsilon,
     ),
 
-    :integer => r"[0-9]+[0-9_]*",
+    :integer => seq(
+        :unicode_space,
+        r"[0-9]+[0-9_]*",
+        :unicode_space,
+    ),
+
+    :exponent => seq(
+        r"e"i,
+        :sign,
+        :integer
+    ),
 
     :decimal => seq(
-        maybe(:sign),
+        :sign,
         :integer,
         maybe(seq(
             token('.'),
@@ -124,26 +90,20 @@ g = P.@grammar :kdl begin
         maybe(:exponent)
     ),
 
-    :exponent => seq(
-        r"e"i,
-        maybe(:sign),
-        :integer
-    ),
-
     :hex => seq(
-        maybe(:sign),
+        :sign,
         tokens("0x"),
         r"[0-9a-fA-F]+[0-9a-fA-F_]*",
     ),
 
     :octal => seq(
-        maybe(:sign),
+        :sign,
         tokens("0o"),
         r"[0-7]+[0-7_]*",
     ),
 
     :binary => seq(
-        maybe(:sign),
+        :sign,
         tokens("0b"),
         r"[0-1]+[0-1_]*",
     ),
@@ -156,215 +116,214 @@ g = P.@grammar :kdl begin
         :decimal
     ),
 
-
-    :version => seq(
-        tokens("/-"),
-        maybe(some(:unicode_space)),
-        tokens("kdl-version"),
-        some(:unicode_space),
-        first(
-            token('1'),
-            token('2')
-        ),
-        maybe(some(:unicode_space)),
-        :newline
-    ),
-
-    # N.B. Pika parsing doesn't care about backtrack
-    :string => first(
-        :identifier_string,
-        :quoted_string,
-        :raw_string
-    ),
-
-    :identifier_string => first(
-        :unambiguous_ident,
-        :signed_ident,
-        :dotted_ident
-    ),
-
-    #=:disallowed_keyword_identifiers => first(=#
-    #=    tokens("true"),=#
-    #=    tokens("false"),=#
-    #=    tokens("null"),=#
-    #=    tokens("inf"),=#
-    #=    tokens("-inf"),=#
-    #=    tokens("nan"),=#
-    #=),=#
-
-    :unambiguous_ident => seq(
+    :ident => seq(
         not_followed_by(tokens("true")),
         not_followed_by(tokens("false")),
         not_followed_by(tokens("null")),
         not_followed_by(tokens("inf")),
         not_followed_by(tokens("-inf")),
         not_followed_by(tokens("nan")),
-        not_followed_by(r"[\.0-9]"),
-        some(:identifier_char)
+        r"[a-zA-Z_]+[a-zA-Z0-9_]*",
     ),
 
-    :signed_ident => seq(
-        :sign,
-        maybe(seq(
-            not_followed_by(r"[\.0-9]"),
-            some(:identifier_char)
-        ))
-    ),
+    #=:signed_ident => seq(=#
+    #=    :sign,=#
+    #=    :ident,=#
+    #=),=#
 
-    :dotted_ident => seq(
-        maybe(:sign),
-        token('.'),
-        seq(
-            not_followed_by(r"[0-9]"),
-            :identifier_char
+    #=:dotted_ident => seq(=#
+    #=    :sign,=#
+    #=    token('.'),=#
+    #=    :ident,=#
+    #=),=#
+
+    #=:singleline_string => seq(=#
+    #=    token('"'),=#
+    #=    many(satisfy(x -> x != '"')),=#
+    #=    token('"'),=#
+    #=),=#
+
+    #=:multiline_string => seq(=#
+    #=    tokens("\"\"\""),=#
+    #=    :newline,=#
+    #=    r"(?!\"\"\").{3}",=#
+    #=    tokens("\"\"\""),=#
+    #=),=#
+
+    #=:raw_string => seq(=#
+    #=    token('#'),=#
+    #=    r"[^#]*",=#
+    #=    token('#'),=#
+    #=),=#
+
+    #=:quoted_string => first(=#
+    #=    :singleline_string,=#
+    #=    #=:multiline_string,=#=#
+    #=),=#
+
+    #=:identifier_string => first(=#
+    #=    :dotted_ident,=#
+    #=    :signed_ident,=#
+    #=    :ident,=#
+    #=),=#
+
+    #=:string => first(=#
+    #=    #=:raw_string,=#=#
+    #=    #=:quoted_string,=#=#
+    #=    :ident,=#
+    #=),=#
+
+    #=:type => seq(=#
+    #=    token('('),=#
+    #=    :ws,=#
+    #=    :ident,=#
+    #=    :ws,=#
+    #=    token(')')=#
+    #=),=#
+
+    :value => seq(
+        #=maybe(:type),=#
+        first(
+            :number,
+            :keyword,
+            :ident, # :string
         ),
-        many(:identifier_char),
+        :ws,
     ),
 
-    # TODO: not_followed_by: is this ok?
-    :identifier_char => seq(
-        not_followed_by(:unicode_space),
-        not_followed_by(:newline),
-        not_followed_by(r"[\\/(){};\[\]\"#=]"),
-        satisfy(_ -> true)
-    ),
-
-
-    :singleline_string => seq(
-        token('"'),
-        many(satisfy(x -> x != '"')),
-        token('"'),
-    ),
-
-    :multiline_string => seq(
-        tokens("\"\"\""),
-        :newline,
-        r"(?!\"\"\").{3}",
-        tokens("\"\"\""),
-    ),
-
-    :quoted_string => first(
-        :singleline_string,
-        :multiline_string,
-    ),
-
-    :raw_string => seq(
-        token('#'),
-        r"[^#]*",
-        token('#'),
-    ),
-
-
-    :nodes => seq(
-        maybe(some(seq(
-            :mlinespace => maybe(some(:linespace)),
-            :node
-        ))),
-        :mlinespace
-    ),
-
-    :basenode => seq(
-        maybe(:slashdash),
-        maybe(:type),
-        maybe(some(:unicode_space)),
-        :string,
-        maybe(some( seq(some(:unicode_space), maybe(:slashdash), :node_prop_or_arg))),
-        maybe(some( seq(some(:unicode_space), :slashdash,        :node_children))),
-        maybe(seq(some(:unicode_space), :node_children)),
-        maybe(some(( seq(some(:unicode_space), :slashdash,        :node_children)))),
-        maybe(some(:unicode_space)),
-    ),
-
-    :node => seq(
-        :basenode,
-        :node_terminator
-    ),
-
-    :finalnode => seq(
-        :basenode,
-        maybe(:node_terminator)
-    ),
-
-    :node_prop_or_arg => first(
-        :prop,
-        :value
+    :prop => seq(
+        :ident,
+        :ws,
+        token('='),
+        :ws,
+        :value,
+        :ws,
     ),
 
     :node_children => seq(
-        token('{'),
-        :nodes,
-        maybe(:finalnode),
+        token('{'),  :ws,
+        many(:node), :ws,
         token('}'),
     ),
 
-    :node_terminator => first(
-        #=:singleline_comment,=#
-        :newline,
-        token(';'),
-        P.end_of_input
-    ),
-
-    # props and values
-    :prop => seq(
-        :string,
-        many(:unicode_space),
-        token('='),
-        many(:unicode_space),
+    :node_args => some(first(
+        :prop,
         :value
+    )),
+
+    :node_params => first(
+        seq(:node_args, :node_children),
+        :node_args,
+        :node_children,
     ),
 
-    :value => seq(
-        maybe(:type),
-        many(:unicode_space),
+    :node => seq(
+        :ident,
+        :ws,
+        :node_params,
+        :ws,
         first(
-            :string,
-            :number,
-            :keyword
-        )
+            token(';'),
+            :singleline_comment,
+            :newline,
+            epsilon
+        ),
     ),
 
-    :type => seq(
-        token('('),
-        many(:unicode_space),
-        :string,
-        many(:unicode_space),
-        token(')')
+    :slashdash => seq(
+        tokens("/-"),
+        :node,
     ),
 
-
+    :nodes => some(first(
+        :slashdash,
+        :node
+    )),
 
     :kdl => seq(
-        :bom,       # byte order marker (unicode)
-        :version,   # KDL version declaration
-        :nodes      # KDL nodes.
+        :ws,
+        first(
+            :nodes,
+            :node,
+            #=:ident=#
+        )
     )
 end
 
+kdl = P.@evaluate :kdl m v begin
+
+
+    :boolean => begin
+        @info "boolean"
+        @show m.view
+        @match m.view begin
+            "#true"  => true
+            "#false" => false
+        end
+    end
+
+    :keywordnumber => begin
+        @info "keywordnumber"
+        @show m.view
+        @match m.view begin
+            "#inf"  => Inf
+            "#-inf" => -Inf
+            "#nan"  => NaN
+        end
+    end
+
+    :keyword => begin
+        !isnothing(v) && return v[1]
+        m.view == "#null" && return nothing
+    end
+
+    :sign => begin
+        @match m.view begin
+            "-" => :minus
+            "+" => :plus
+            ""  => :plus
+        end
+    end
+
+    :ident => begin
+        @info "Ident"
+        @show m.view
+        Symbol(m.view)
+    end
+
+    #=:string => begin=#
+    #=    @info "String"=#
+    #=    @show v=#
+    #=    m.view=#
+    #=end=#
+
+    :prop => begin
+        @info "Prop"
+        @show m.view
+        @show v
+        v[1] => v[5]
+    end
+
+    :node  => begin
+        @info "Node"
+        @show m.view
+        @show v
+        v[1]
+    end
+
+    :nodes => begin
+        @info "Nodes"
+        @show m.view
+        @show v
+        v
+    end
+
+    :kdl => begin
+        @info "KDL"
+        @show m.view
+        @show v
+        v
+    end
+end
+
 end # module KDL
-
-
-    #=:mlsbody => many(seq(=#
-    #=    maybe(r"(\"|\"\")"),=#
-    #=    :strchar,=#
-    #=)),=#
-    #
-    #
-    #
-    #=:strchar => first(=#
-    #=    :fmtchar,=#
-    #=    :unicode_escape,=#
-    #=    :ws_esc,=#
-    #=    r"[^\\\"]",=#
-    #=),=#
-
-
-    #=:ws_esc => seq(=#
-    #=    token('\\'),=#
-    #=    satisfy(isspace),=#
-    #=),=#
-    #:fmtchar => r"\\[bfnrts\\\"]",
-    #=:unicode_escape => seq(=#
-    #=    tokens("\\u{"),=#
-    #=    r"[0-9a-fA-F]{1,6}",=#
-    #=    token('}'),=#
-    #=),=#

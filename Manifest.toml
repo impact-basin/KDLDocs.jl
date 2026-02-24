@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "80c3eb9893340940ec77ab67b6857edce4bf21ec"
+project_hash = "84edf76b4df0a249dcde871489e5b9cb6d0d460d"
 
 [[deps.DocStringExtensions]]
 git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
@@ -10,6 +10,7 @@ uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.9.5"
 
 [[deps.KDL]]
+deps = ["PikaParser"]
 path = "."
 uuid = "401a1991-251b-4274-8504-ebcf13a74f85"
 version = "0.1.0"
@@ -19,10 +20,19 @@ git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 version = "0.5.16"
 
+[[deps.Match]]
+deps = ["MacroTools", "OrderedCollections"]
+git-tree-sha1 = "58c5c5db26f2f0512facb359991410b7b5982c38"
+uuid = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
+version = "2.4.1"
+
+[[deps.OrderedCollections]]
+git-tree-sha1 = "05868e21324cede2207c6f0f466b4bfef6d5e7ee"
+uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+version = "1.8.1"
+
 [[deps.PikaParser]]
 deps = ["DocStringExtensions", "MacroTools"]
-git-tree-sha1 = "cc4d4a9d45113616db89912b86ae4c100441aac5"
-repo-rev = "master"
-repo-url = "https://github.com/impact-basin/PikaParser.jl"
+path = "../PikaParser.jl"
 uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
 version = "0.6.1"

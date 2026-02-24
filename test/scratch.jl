@@ -1,11 +1,18 @@
 using KDL
 
-txt = """
-ui {
+txt = """ ui {
     pane_frames {
-        hide_session_name true
+        hide_session_name #true
     }
 }
 """
 
-KDL.g(txt)
+txt = """
+    ui foo bar { 
+        ba 
+    }
+"""
+KDL.g(txt) |> KDL.kdl
+
+g = KDL.g(txt)
+KDL.kdl(g)

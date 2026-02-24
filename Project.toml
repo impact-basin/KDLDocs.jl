@@ -4,7 +4,9 @@ version = "0.1.0"
 authors = ["henry eshbaugh <henry.eshbaugh@physics.ox.ac.uk>"]
 
 [deps]
+Match = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
 PikaParser = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
 
 [compat]
+Match = "2.4.1"
 PikaParser = "0.6.1"
