@@ -2,6 +2,20 @@ module KDL
 
 # grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
+function to_dict(submatches)
+    ret = Dict{Symbol, Any}()
+    for elem in submatches
+        if elem isa Dict
+            @info "to_dict(): processing element"
+            @show elem
+           if haskey(elem, :name)
+                ret[elem[:name]] = copy(elem)
+                delete!(ret[elem[:name]], :name)
+            end
+        end
+    end
+end
+
 using Match
 import PikaParser as P
 
@@ -126,10 +140,10 @@ g = P.@grammar :kdl begin
         r"[a-zA-Z_]+[a-zA-Z0-9_]*",
     ),
 
-    #=:signed_ident => seq(=#
-    #=    :sign,=#
-    #=    :ident,=#
-    #=),=#
+    :signed_ident => seq(
+        :sign,
+        :ident,
+    ),
 
     #=:dotted_ident => seq(=#
     #=    :sign,=#
@@ -173,37 +187,33 @@ g = P.@grammar :kdl begin
     #=    :ident,=#
     #=),=#
 
-    #=:type => seq(=#
-    #=    token('('),=#
-    #=    :ws,=#
-    #=    :ident,=#
-    #=    :ws,=#
-    #=    token(')')=#
-    #=),=#
+    :type => seq(
+        token('('), :ws,
+        :ident,     :ws,
+        token(')'), :ws,
+    ),
 
     :value => seq(
-        #=maybe(:type),=#
+        maybe(:type),
         first(
             :number,
             :keyword,
+            :signed_ident,
             :ident, # :string
         ),
         :ws,
     ),
 
     :prop => seq(
-        :ident,
-        :ws,
-        token('='),
-        :ws,
-        :value,
-        :ws,
+        :ident,     :ws,
+        token('='), :ws,
+        :value,     :ws,
     ),
 
     :node_children => seq(
         token('{'),  :ws,
-        many(:node), :ws,
-        token('}'),
+        some(:node), :ws,
+        token('}'),  :ws,
     ),
 
     :node_args => some(first(
@@ -211,23 +221,27 @@ g = P.@grammar :kdl begin
         :value
     )),
 
-    :node_params => first(
-        seq(:node_args, :node_children),
-        :node_args,
-        :node_children,
+    :node_with_children => seq(
+        :ident,         :ws,
+        :node_args,     :ws,
+        :node_children, :ws,
     ),
 
-    :node => seq(
-        :ident,
-        :ws,
-        :node_params,
-        :ws,
-        first(
-            token(';'),
-            :singleline_comment,
-            :newline,
-            epsilon
-        ),
+    :node_only_params => seq(
+        :ident,     :ws,
+        :node_args, :ws,
+    ),
+
+    :node_only_children => seq(
+        :ident,         :ws,
+        :node_children, :ws,
+    ),
+
+    :node => first(
+        :node_with_children,
+        :node_only_children,
+        :node_only_params,
+        :ident
     ),
 
     :slashdash => seq(
@@ -252,28 +266,25 @@ end
 
 kdl = P.@evaluate :kdl m v begin
 
-
     :boolean => begin
-        @info "boolean"
-        @show m.view
-        @match m.view begin
+        Dict(:value => @match m.view begin
             "#true"  => true
             "#false" => false
-        end
+        end)
     end
 
     :keywordnumber => begin
-        @info "keywordnumber"
-        @show m.view
-        @match m.view begin
+        Dict(:value => @match m.view begin
             "#inf"  => Inf
             "#-inf" => -Inf
             "#nan"  => NaN
-        end
+        end)
     end
 
     :keyword => begin
-        !isnothing(v) && return v[1]
+        @info "keyword"
+        @show v
+        !isnothing(v)     && return v[1]
         m.view == "#null" && return nothing
     end
 
@@ -286,9 +297,15 @@ kdl = P.@evaluate :kdl m v begin
     end
 
     :ident => begin
-        @info "Ident"
-        @show m.view
-        Symbol(m.view)
+        Dict(
+            :name  => Symbol(m.view),
+        )
+    end
+
+    :signed_ident => begin
+        return Dict(
+            :v[2] => Dict(:sign => v[1]),
+        )
     end
 
     #=:string => begin=#
@@ -297,32 +314,56 @@ kdl = P.@evaluate :kdl m v begin
     #=    m.view=#
     #=end=#
 
+    :type => begin
+        Dict(:type => v[3])
+    end
+
+    :value => begin
+        Dict(
+            :value => v[2],
+            :type  => v[1],
+        )
+    end
+
     :prop => begin
-        @info "Prop"
-        @show m.view
+        Dict(
+            v[1] => v[5]
+        )
+    end
+
+    :node_children => begin
+        v[3]
+    end
+
+    :node_args => begin
+        v
+    end
+
+    :node_with_children => begin
+        @info "Node with children and args"
         @show v
-        v[1] => v[5]
+        Dict(
+            :name => v[1],
+            :args => v[3],
+            :body => v[5],
+        )
     end
 
     :node  => begin
         @info "Node"
-        @show m.view
-        @show v
-        v[1]
+        to_dict(v)
     end
 
     :nodes => begin
         @info "Nodes"
         @show m.view
         @show v
-        v
+        to_dict(v)
     end
 
     :kdl => begin
         @info "KDL"
-        @show m.view
-        @show v
-        v
+        v[2]
     end
 end
 

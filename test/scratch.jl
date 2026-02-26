@@ -8,8 +8,10 @@ txt = """ ui {
 """
 
 txt = """
-    ui foo bar { 
-        ba 
+    ui foo = (bool)#true -bar { 
+        baz abc = def {
+            qux
+        }
     }
 """
 KDL.g(txt) |> KDL.kdl
