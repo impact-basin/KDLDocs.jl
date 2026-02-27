@@ -1,5 +1,17 @@
 module KDL
 
+import Moshi.Data.@data
+import Moshi.Match.@match as @cases
+
+using Term: Tree
+
+@data K begin
+    kdl_immediate(Any)
+    kdl_ident(Symbol)
+    kdl_type(Symbol)
+    kdl_signed_ident(Symbol, Symbol)
+end
+
 # grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
 function to_dict(submatches)
@@ -14,6 +26,9 @@ function to_dict(submatches)
             end
         end
     end
+    @info "to_dict(): returning."
+    println(Tree(ret))
+    ret
 end
 
 using Match
@@ -140,10 +155,10 @@ g = P.@grammar :kdl begin
         r"[a-zA-Z_]+[a-zA-Z0-9_]*",
     ),
 
-    :signed_ident => seq(
-        :sign,
-        :ident,
-    ),
+    #=:signed_ident => seq(=#
+    #=    :sign,=#
+    #=    :ident,=#
+    #=),=#
 
     #=:dotted_ident => seq(=#
     #=    :sign,=#
@@ -198,7 +213,7 @@ g = P.@grammar :kdl begin
         first(
             :number,
             :keyword,
-            :signed_ident,
+            #=:signed_ident,=#
             :ident, # :string
         ),
         :ws,
@@ -267,18 +282,18 @@ end
 kdl = P.@evaluate :kdl m v begin
 
     :boolean => begin
-        Dict(:value => @match m.view begin
-            "#true"  => true
-            "#false" => false
-        end)
+        @match m.view begin
+           "#true"   => true
+           "#false" => false
+        end
     end
 
     :keywordnumber => begin
-        Dict(:value => @match m.view begin
+        @match m.view begin
             "#inf"  => Inf
             "#-inf" => -Inf
             "#nan"  => NaN
-        end)
+        end
     end
 
     :keyword => begin
@@ -290,23 +305,25 @@ kdl = P.@evaluate :kdl m v begin
 
     :sign => begin
         @match m.view begin
-            "-" => :minus
-            "+" => :plus
-            ""  => :plus
+            "-" => :-
+            "+" => :+
+            _   => nothing
         end
     end
 
     :ident => begin
-        Dict(
-            :name  => Symbol(m.view),
-        )
+        Symbol(m.view)
     end
 
-    :signed_ident => begin
-        return Dict(
-            :v[2] => Dict(:sign => v[1]),
-        )
-    end
+    #=:signed_ident => begin=#
+    #=    # this will probably break.=#
+    #=    @info "signed ident"=#
+    #=    @show v=#
+    #=    isnothing(v[1]) && return v[2]=#
+    #=    return Dict(=#
+    #=        v[2] => Dict(:sign => v[1]),=#
+    #=    )=#
+    #=end=#
 
     #=:string => begin=#
     #=    @info "String"=#
@@ -315,7 +332,7 @@ kdl = P.@evaluate :kdl m v begin
     #=end=#
 
     :type => begin
-        Dict(:type => v[3])
+        v[3]
     end
 
     :value => begin
@@ -336,6 +353,7 @@ kdl = P.@evaluate :kdl m v begin
     end
 
     :node_args => begin
+        # TODO: rewrite this as a dict of all the prop pairs.
         v
     end
 

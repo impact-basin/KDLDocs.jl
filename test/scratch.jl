@@ -8,7 +8,7 @@ txt = """ ui {
 """
 
 txt = """
-    ui foo = (bool)#true -bar { 
+    ui foo = (bool)#true bar { 
         baz abc = def {
             qux
         }
