@@ -1,40 +1,54 @@
 module KDL
 
-import Moshi.Data.@data
-import Moshi.Match.@match as @cases
-
-using Term: Tree
-
-@data K begin
-    kdl_immediate(Any)
-    kdl_ident(Symbol)
-    kdl_type(Symbol)
-    kdl_signed_ident(Symbol, Symbol)
-end
+export ⇜
+export ←
+export KDLNode
 
 # grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
-function to_dict(submatches)
-    ret = Dict{Symbol, Any}()
-    for elem in submatches
-        if elem isa Dict
-            @info "to_dict(): processing element"
-            @show elem
-           if haskey(elem, :name)
-                ret[elem[:name]] = copy(elem)
-                delete!(ret[elem[:name]], :name)
-            end
-        end
-    end
-    @info "to_dict(): returning."
-    println(Tree(ret))
-    ret
+using  Match
+import PikaParser as P
+using Term: Tree, Theme
+
+struct KDLNode
+    d :: Dict{Any,Any}
+    KDLNode(args...) = new(Dict(args...))
+    #=KDLNode(arg)     = new(Dict(arg))=#
+    KDLNode() = new(Dict())
 end
 
-using Match
-import PikaParser as P
+Base.show(io::IO, k::KDLNode) = print(io, "\nKDLNode: ",
+    Tree(k.d, theme=Theme(tree_max_leaf_width = 120)))
 
-g = P.@grammar :kdl begin
+Base.merge(k1::KDLNode, k2::KDLNode) = KDLNode(merge(k1.d, k2.d))
+Base.merge!(k1::KDLNode, k2::KDLNode) = begin
+    merge!(k1.d, k2.d)
+    k1
+end
+Base.empty!(k::KDLNode) = empty!(k.d)
+Base.getindex(k :: KDLNode, i) = get(k.d, i, false)
+Base.getindex(k :: KDLNode, is...) = get(k.d, is, false)
+function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple}) 
+    length(i) == 0 ? error("Zero-length index for $k") :
+    length(i) == 1 ? k[i[1]] : k[i[1]][i[2:end]]
+end
+Base.haskey(k :: KDLNode, i) = haskey(k.d, i)
+Base.setindex!(k :: KDLNode, i,  v)    = k.d[i] = v
+Base.setindex!(k :: KDLNode, is..., v) = k.d[is] = v
+function Base.setindex!(
+    k :: KDLNode,
+    i :: Union{Vector,Tuple},
+    v) 
+
+    length(i) == 0 ? error("Zero-length index for $k") :
+    length(i) == 1 ? setindex!(k, i[1], v)             :
+                     setindex!(k[i[1]], i[2:end], v)
+end
+
+⇜(k::KDLNode, i) = !ismissing(k[i]) 
+←(k::KDLNode, i) = ismissing(k[i])
+
+syntax = P.@syntax :kdl begin
 
     :unicode_space => first(
         token('\u0009'), token('\u0020'), token('\u00A0'),
@@ -231,10 +245,12 @@ g = P.@grammar :kdl begin
         token('}'),  :ws,
     ),
 
-    :node_args => some(first(
+    :arg => first(
         :prop,
-        :value
-    )),
+        :value,
+    ),
+
+    :node_args => some(:arg),
 
     :node_with_children => seq(
         :ident,         :ws,
@@ -264,27 +280,23 @@ g = P.@grammar :kdl begin
         :node,
     ),
 
-    :nodes => some(first(
+    :knode => first(
         :slashdash,
         :node
-    )),
+    ),
 
     :kdl => seq(
         :ws,
-        first(
-            :nodes,
-            :node,
-            #=:ident=#
-        )
+        many(:knode)
     )
 end
 
-kdl = P.@evaluate :kdl m v begin
+semantics = P.@semantics :kdl m v begin
 
     :boolean => begin
         @match m.view begin
-           "#true"   => true
-           "#false" => false
+            "#true"  => true
+            "#false" => false
         end
     end
 
@@ -297,8 +309,6 @@ kdl = P.@evaluate :kdl m v begin
     end
 
     :keyword => begin
-        @info "keyword"
-        @show v
         !isnothing(v)     && return v[1]
         m.view == "#null" && return nothing
     end
@@ -311,9 +321,9 @@ kdl = P.@evaluate :kdl m v begin
         end
     end
 
-    :ident => begin
-        Symbol(m.view)
-    end
+    :ident => Symbol(m.view)
+    :type => KDLNode(:type => v[3])
+    :value => v[2][1]
 
     #=:signed_ident => begin=#
     #=    # this will probably break.=#
@@ -331,57 +341,83 @@ kdl = P.@evaluate :kdl m v begin
     #=    m.view=#
     #=end=#
 
-    :type => begin
-        v[3]
-    end
 
-    :value => begin
-        Dict(
-            :value => v[2],
-            :type  => v[1],
-        )
-    end
-
-    :prop => begin
-        Dict(
-            v[1] => v[5]
-        )
-    end
+    :prop => KDLNode(v[1] => v[5])
 
     :node_children => begin
-        v[3]
+        @info ":node_children"
+        @show m.view
+        @show v[3]
+        # fixme -- turn this into a dictionary
+        ret = KDLNode()
+        for node in v[3]
+            @show "Iterating" node
+            merge!(ret, KDLNode(node[1] => node[2]))
+        end
+        @show ret
     end
 
+    :arg => v[1] isa KDLNode ? v[1] : KDLNode(v[1] => missing)
+
     :node_args => begin
-        # TODO: rewrite this as a dict of all the prop pairs.
-        v
+        ret = KDLNode()
+        for elem in v
+            merge!(ret, elem)
+        end
+        ret
     end
 
     :node_with_children => begin
-        @info "Node with children and args"
+        @info ":node_with_children"
+        @show m.view
         @show v
-        Dict(
-            :name => v[1],
-            :args => v[3],
-            :body => v[5],
-        )
+        @show (v[1], v[3], v[5])
+    end
+
+    :node_only_params => begin
+        @info ":node_only_params"
+        @show m.view
+        @show (v[1], v[3], nothing)
+    end
+
+    :node_only_children => begin
+        @info ":node_only_children"
+        @show m.view
+        @show v
+        @show (v[1], nothing, v[3])
     end
 
     :node  => begin
-        @info "Node"
-        to_dict(v)
+        ret = @match v[1] begin
+
+            (s::Symbol, args::KDLNode, body::KDLNode) =>
+                (s, merge(args, body))
+
+            (s::Symbol, args::KDLNode, nothing) =>
+                (s, args)
+
+            (s::Symbol, nothing, body::KDLNode) =>
+                (s, body)
+
+            s :: Symbol => (s, missing)
+            _ => error("Weird node: $(v[1])")
+        end
+        @show ret
     end
 
-    :nodes => begin
-        @info "Nodes"
-        @show m.view
-        @show v
-        to_dict(v)
-    end
+    :knode => v[1]
 
     :kdl => begin
-        @info "KDL"
-        v[2]
+        @info ":kdl"
+        @show v[2]
+        ret = KDLNode()
+        for node in v[2]
+            @show node
+            s, d = node
+            @show s d
+            merge!(ret, KDLNode(s => isnothing(d) ? missing : d))
+        end
+        ret
     end
 end
 

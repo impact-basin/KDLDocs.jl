@@ -8,13 +8,13 @@ txt = """ ui {
 """
 
 txt = """
-    ui foo = (bool)#true bar { 
+    ui foo = #true bar { 
         baz abc = def {
             qux
         }
     }
 """
-KDL.g(txt) |> KDL.kdl
+data = KDL.syntax(txt) |> KDL.semantics
 
 g = KDL.g(txt)
 KDL.kdl(g)
