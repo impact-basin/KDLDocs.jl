@@ -72,7 +72,7 @@ uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
 version = "1.12.0"
 
 [[deps.KDL]]
-deps = ["Match", "Moshi", "PikaParser"]
+deps = ["Match", "Moshi", "PikaParser", "Term"]
 path = "."
 uuid = "401a1991-251b-4274-8504-ebcf13a74f85"
 version = "0.1.0"
@@ -121,7 +121,9 @@ version = "0.12.3"
 
 [[deps.PikaParser]]
 deps = ["DocStringExtensions", "MacroTools"]
-path = "../PikaParser.jl"
+git-tree-sha1 = "32d1d551001da304aeaabff2da6b8d5f469fa9b0"
+repo-rev = "master"
+repo-url = "https://github.com/impact-basin/PikaParser.jl"
 uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
 version = "0.6.1"
 

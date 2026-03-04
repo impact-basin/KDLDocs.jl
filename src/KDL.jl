@@ -11,22 +11,44 @@ import PikaParser as P
 using Term: Tree, Theme
 
 struct KDLNode
-    d :: Union{Dict{Any,Any}, Missing}
-    a :: Union{Dict{Any,Any}, Missing}
-    KDLNode(args...) = new(Dict(args...), Dict())
-    KDLNode(s::Symbol, a::Dict, b::Dict) = new(KDLNode(s => b), a)
+    a :: Union{Dict, Missing}
+    d :: Union{Dict, Missing}
+    KDLNode(body::Pair...)= new(Dict(), Dict(body))
+    #=KDLNode(a, b) = new(a, b)=#
     #=KDLNode(arg)     = new(Dict(arg))=#
     KDLNode() = new(Dict(), Dict())
+    KDLNode(_::Missing, _::Missing) = new(missing, missing)
+    KDLNode(a::Dict, d::Dict) = new(a, d)
+    KDLNode(a::Dict, d::Missing) = new(a, d)
+    KDLNode(_::Missing, d::Dict) = new(missing, d)
 end
 
-Base.show(io::IO, k::KDLNode) = print(io, "\nKDLNode: ",
-    Tree(k.d, theme=Theme(tree_max_leaf_width = 120)))
+Base.show(io::IO, k::KDLNode) =
+    print(io, "KDLNode { ",
+              "Args:", k.a, " ",
+              "Body:", k.d, " }"
+    )
 
-Base.merge(k1::KDLNode, k2::KDLNode) = KDLNode(merge(k1.d, k2.d))
+Base.merge(a, _::Missing) = a
+Base.merge(_::Missing, b) = b
+Base.merge(_::Missing, _::Missing) = missing
+
+Base.merge(k1::KDLNode, k2::KDLNode) =
+    KDLNode(merge(k1.a, k2.a), merge(k1.d, k2.d))
+
+Base.merge(k::KDLNode, d::Dict) = KDLNode(k.a, merge(k.d, d))
+Base.merge(d::Dict, k::KDLNode) = KDLNode(k.a, merge(k.d, d))
+Base.merge!(k::KDLNode, d::Dict) = begin
+    merge!(k.d, d)
+    k
+end
+
 Base.merge!(k1::KDLNode, k2::KDLNode) = begin
-    merge!(k1.d, k2.d)
+    merge!(k1.d, copy(k2.d))
+    merge!(k1.a, copy(k2.a))
     k1
 end
+
 Base.empty!(k::KDLNode) = empty!(k.d)
 Base.getindex(k :: KDLNode, i) = get(k.d, i, false)
 Base.getindex(k :: KDLNode, is...) = get(k.d, is, false)
@@ -346,7 +368,6 @@ semantics = P.@semantics :kdl m v begin
     #=    m.view=#
     #=end=#
 
-
     :prop => (v[1], v[5])
 
     :node_children => begin
@@ -354,10 +375,11 @@ semantics = P.@semantics :kdl m v begin
         @show m.view
         @show v[3]
         # fixme -- turn this into a dictionary
-        ret = KDLNode()
+        ret = Dict()
         for node in v[3]
             @show "Iterating" node
-            merge!(ret, KDLNode(node[1] => node[2]))
+            s, a, b = node
+            @show merge!(ret, Dict(s => KDLNode(a, b)))
         end
         @show ret
     end
@@ -407,7 +429,6 @@ semantics = P.@semantics :kdl m v begin
 
     :node  => begin
         ret = @match v[1] begin
-
             (s, args, body) => (s, args,    body)
              s :: Symbol    => (s, missing, missing)
             _ => error("Weird node: $(v[1])")
@@ -422,10 +443,10 @@ semantics = P.@semantics :kdl m v begin
         @show v[2]
         ret = KDLNode()
         for node in v[2]
+            @info "kdl: iterating"
             @show node
             s, a, b = node
-            @show s a b
-            merge!(ret, KDLNode(s, a, b))
+            merge!(ret, Dict(s => KDLNode(a, b)))
         end
         ret
     end
