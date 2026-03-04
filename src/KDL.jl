@@ -11,10 +11,12 @@ import PikaParser as P
 using Term: Tree, Theme
 
 struct KDLNode
-    d :: Dict{Any,Any}
-    KDLNode(args...) = new(Dict(args...))
+    d :: Union{Dict{Any,Any}, Missing}
+    a :: Union{Dict{Any,Any}, Missing}
+    KDLNode(args...) = new(Dict(args...), Dict())
+    KDLNode(s::Symbol, a::Dict, b::Dict) = new(KDLNode(s => b), a)
     #=KDLNode(arg)     = new(Dict(arg))=#
-    KDLNode() = new(Dict())
+    KDLNode() = new(Dict(), Dict())
 end
 
 Base.show(io::IO, k::KDLNode) = print(io, "\nKDLNode: ",
@@ -34,7 +36,7 @@ function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple})
 end
 Base.haskey(k :: KDLNode, i) = haskey(k.d, i)
 Base.setindex!(k :: KDLNode, i,  v)    = k.d[i] = v
-Base.setindex!(k :: KDLNode, is..., v) = k.d[is] = v
+#=Base.setindex!(k :: KDLNode, is, v) = k.d[is] = v=#
 function Base.setindex!(
     k :: KDLNode,
     i :: Union{Vector,Tuple},
@@ -44,6 +46,9 @@ function Base.setindex!(
     length(i) == 1 ? setindex!(k, i[1], v)             :
                      setindex!(k[i[1]], i[2:end], v)
 end
+
+(k::KDLNode)(i)   = k.a[i]
+(k::KDLNode)(i,n) = k.a[i] = n
 
 ⇜(k::KDLNode, i) = !ismissing(k[i]) 
 ←(k::KDLNode, i) = ismissing(k[i])
@@ -342,7 +347,7 @@ semantics = P.@semantics :kdl m v begin
     #=end=#
 
 
-    :prop => KDLNode(v[1] => v[5])
+    :prop => (v[1], v[5])
 
     :node_children => begin
         @info ":node_children"
@@ -357,14 +362,27 @@ semantics = P.@semantics :kdl m v begin
         @show ret
     end
 
-    :arg => v[1] isa KDLNode ? v[1] : KDLNode(v[1] => missing)
+    :arg => v[1] isa Tuple ? v[1] : v[1], missing
 
     :node_args => begin
-        ret = KDLNode()
+        args = Dict()
+        @show v
         for elem in v
-            merge!(ret, elem)
+            @info "node_args iteration"
+            @show elem
+
+            @match elem begin
+
+                (k, v) => begin
+                    args[k] = v
+                end
+
+                v => begin
+                    args[v] = missing
+                end
+            end
         end
-        ret
+        args
     end
 
     :node_with_children => begin
@@ -377,29 +395,21 @@ semantics = P.@semantics :kdl m v begin
     :node_only_params => begin
         @info ":node_only_params"
         @show m.view
-        @show (v[1], v[3], nothing)
+        @show (v[1], v[3], missing)
     end
 
     :node_only_children => begin
         @info ":node_only_children"
         @show m.view
         @show v
-        @show (v[1], nothing, v[3])
+        @show (v[1], missing, v[3])
     end
 
     :node  => begin
         ret = @match v[1] begin
 
-            (s::Symbol, args::KDLNode, body::KDLNode) =>
-                (s, merge(args, body))
-
-            (s::Symbol, args::KDLNode, nothing) =>
-                (s, args)
-
-            (s::Symbol, nothing, body::KDLNode) =>
-                (s, body)
-
-            s :: Symbol => (s, missing)
+            (s, args, body) => (s, args,    body)
+             s :: Symbol    => (s, missing, missing)
             _ => error("Weird node: $(v[1])")
         end
         @show ret
@@ -413,9 +423,9 @@ semantics = P.@semantics :kdl m v begin
         ret = KDLNode()
         for node in v[2]
             @show node
-            s, d = node
-            @show s d
-            merge!(ret, KDLNode(s => isnothing(d) ? missing : d))
+            s, a, b = node
+            @show s a b
+            merge!(ret, KDLNode(s, a, b))
         end
         ret
     end
