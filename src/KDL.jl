@@ -33,19 +33,19 @@ function kdl_value(v)
                    v
 end
 
-function Base.show(io::IO, k::KDLNode)
+function kdl_show(k::KDLNode)
     s = IOBuffer()
     if !ismissing(k.a)
         for (k, v) in k.a
             if ismissing(v)
-                print(io, k, " ")
+                print(s, k, " ")
             else
-                print(io, k, "=", kdl_value(v), " ")
+                print(s, k, "=", kdl_value(v), " ")
             end
         end
     end
     if !ismissing(k.d)
-        io isa IOBuffer && println(s, "{")
+        println(s, "{")
         for (k, v) in k.d
             if ismissing(v)
                 println(s, k)
@@ -53,11 +53,19 @@ function Base.show(io::IO, k::KDLNode)
                 println(s, k, " ", kdl_value(v))
             end
         end
-        io isa IOBuffer && print(s, "}")
+        print(s, "}")
     end
     lines = filter(split(String(take!(s)), '\n')) do line
         !isnothing(match(r"[^\s]+", line)) && line != ""
     end
+    length(lines) > 1 && for i=2:length(lines)-1
+        lines[i] = "    " * lines[i]
+    end
+    return lines
+end
+
+function Base.show(io::IO, k::KDLNode)
+    lines = kdl_show(k)
     length(lines) == 0 && return
     println(io, lines[1])
     length(lines) == 1 && return
@@ -88,32 +96,34 @@ Base.merge!(k1::KDLNode, k2::KDLNode) = begin
     k1
 end
 
-Base.empty!(k::KDLNode) = empty!(k.d)
-Base.getindex(k :: KDLNode, i) = get(k.d, i, false)
-Base.getindex(k :: KDLNode, is...) = get(k.d, is, false)
-function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple}) 
-    length(i) == 0 ? error("Zero-length index for $k") :
-    length(i) == 1 ? k[i[1]] : k[i[1]][i[2:end]]
+Base.empty!(k::KDLNode) = begin
+    empty!(k.d)
+    empty!(k.a)
 end
-Base.haskey(k :: KDLNode, i) = haskey(k.d, i)
-Base.setindex!(k :: KDLNode, i,  v)    = k.d[i] = v
-#=Base.setindex!(k :: KDLNode, is, v) = k.d[is] = v=#
+Base.getindex(k :: KDLNode, i) = k.d[i]
+function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple}) 
+    length(i) == 0      && error("Zero-length index for $k")
+    length(i) == 1      && return k[i[1]]
+    k[i[1]] isa KDLNode && return k[i[1]][i[2:end]]
+    return k[i]
+end
+Base.getindex(k :: KDLNode, i...)   = k[i]
+Base.haskey(k :: KDLNode, i)        = haskey(k.d, i) || i in k()
+Base.setindex!(k :: KDLNode, i,  v) = k.d[i] = v
 function Base.setindex!(
     k :: KDLNode,
     i :: Union{Vector,Tuple},
     v) 
 
-    length(i) == 0 ? error("Zero-length index for $k") :
-    length(i) == 1 ? setindex!(k, i[1], v)             :
-                     setindex!(k[i[1]], i[2:end], v)
+    length(i) == 0      && error("Zero-length index for $k")
+    length(i) == 1      && return setindex!(k, i[1], v)
+    k[i[1]] isa KDLNode && return setindex!(k[i[1]], i[2:end], v)
+    k[i] = v
+    nothing
 end
 
 function (k::KDLNode)()
-    ret = []
-    for (k, _) in k.a
-        push!(ret, k)
-    end
-    ret |> Tuple
+    keys(k.a) |> Tuple
 end
 
 (k::KDLNode)(i)   = k.a[i]
