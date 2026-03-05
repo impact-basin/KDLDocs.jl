@@ -1,21 +1,22 @@
+# █  ▄▀ █▀▀▀▄ █     █▀▀▀▄  ▄▄▄   ▄▄▄▄  ▄▄▄    ▀ █
+# █▀▀▄  █   █ █     █   █ █   █ █     ▀▄▄▄    █ █
+# █   █ █▄▄▄▀ █▄▄▄▄ █▄▄▄▀ ▀▄▄▄▀ ▀▄▄▄▄ ▄▄▄▄▀ ▄ █ █▄
+# A parser for the KDL document language.   ▄▄█   
+                                                  
 module KDL
-
-export ⇜
-export ←
-export KDLNode
-
-# grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
 using  Match
 using  StyledStrings
 import PikaParser as P
 
+export ⇜
+export ←
+export KDLNode
+
 struct KDLNode
     a :: Union{Dict, Missing}
     d :: Union{Dict, Missing}
     KDLNode(body::Pair...)= new(Dict(), Dict(body))
-    #=KDLNode(a, b) = new(a, b)=#
-    #=KDLNode(arg)     = new(Dict(arg))=#
     KDLNode() = new(Dict(), Dict())
     KDLNode(_::Missing, _::Missing) = new(missing, missing)
     KDLNode(a::Dict, d::Dict) = new(a, d)
@@ -23,114 +24,6 @@ struct KDLNode
     KDLNode(_::Missing, d::Dict) = new(missing, d)
 end
 
-function kdl_value(v)
-    v == Inf     ? "#inf"   :
-    v == -Inf    ? "#-inf"  :
-    v == NaN     ? "#nan"   :
-    v == true    ? "#true"  :
-    v == false   ? "#false" :
-    isnothing(v) ? "#null"  :
-                   v
-end
-
-function kdl_show(k::KDLNode)
-    s = IOBuffer()
-    if !ismissing(k.a)
-        for (k, v) in k.a
-            if ismissing(v)
-                print(s, k, " ")
-            else
-                print(s, k, "=", kdl_value(v), " ")
-            end
-        end
-    end
-    if !ismissing(k.d)
-        println(s, "{")
-        for (k, v) in k.d
-            if ismissing(v)
-                println(s, k)
-            else
-                println(s, k, " ", kdl_value(v))
-            end
-        end
-        print(s, "}")
-    end
-    lines = filter(split(String(take!(s)), '\n')) do line
-        !isnothing(match(r"[^\s]+", line)) && line != ""
-    end
-    length(lines) > 1 && for i=2:length(lines)-1
-        lines[i] = "    " * lines[i]
-    end
-    return lines
-end
-
-function Base.show(io::IO, k::KDLNode)
-    lines = kdl_show(k)
-    length(lines) == 0 && return
-    println(io, lines[1])
-    length(lines) == 1 && return
-    for line in lines[2:end-1]
-        io isa IOBuffer && print(io, "\t")
-        println(io, line)
-    end
-    println(io, lines[end])
-end
-
-Base.merge(a, _::Missing) = a
-Base.merge(_::Missing, b) = b
-Base.merge(_::Missing, _::Missing) = missing
-
-Base.merge(k1::KDLNode, k2::KDLNode) =
-    KDLNode(merge(k1.a, k2.a), merge(k1.d, k2.d))
-
-Base.merge(k::KDLNode, d::Dict) = KDLNode(k.a, merge(k.d, d))
-Base.merge(d::Dict, k::KDLNode) = KDLNode(k.a, merge(k.d, d))
-Base.merge!(k::KDLNode, d::Dict) = begin
-    merge!(k.d, d)
-    k
-end
-
-Base.merge!(k1::KDLNode, k2::KDLNode) = begin
-    merge!(k1.d, copy(k2.d))
-    merge!(k1.a, copy(k2.a))
-    k1
-end
-
-Base.empty!(k::KDLNode) = begin
-    empty!(k.d)
-    empty!(k.a)
-end
-Base.getindex(k :: KDLNode, i) = k.d[i]
-function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple}) 
-    length(i) == 0      && error("Zero-length index for $k")
-    length(i) == 1      && return k[i[1]]
-    k[i[1]] isa KDLNode && return k[i[1]][i[2:end]]
-    return k[i]
-end
-Base.getindex(k :: KDLNode, i...)   = k[i]
-Base.haskey(k :: KDLNode, i)        = haskey(k.d, i) || i in k()
-Base.setindex!(k :: KDLNode, i,  v) = k.d[i] = v
-function Base.setindex!(
-    k :: KDLNode,
-    i :: Union{Vector,Tuple},
-    v) 
-
-    length(i) == 0      && error("Zero-length index for $k")
-    length(i) == 1      && return setindex!(k, i[1], v)
-    k[i[1]] isa KDLNode && return setindex!(k[i[1]], i[2:end], v)
-    k[i] = v
-    nothing
-end
-
-function (k::KDLNode)()
-    keys(k.a) |> Tuple
-end
-
-(k::KDLNode)(i)   = k.a[i]
-(k::KDLNode)(i,n) = k.a[i] = n
-
-⇜(k::KDLNode, i) = !ismissing(k[i]) 
-←(k::KDLNode, i) = ismissing(k[i])
 
 syntax = P.@syntax :kdl begin
 
@@ -517,5 +410,114 @@ semantics = P.@semantics :kdl m v begin
         ret
     end
 end
+
+function kdl_value(v)
+    v == Inf     ? "#inf"   :
+    v == -Inf    ? "#-inf"  :
+    v == NaN     ? "#nan"   :
+    v == true    ? "#true"  :
+    v == false   ? "#false" :
+    isnothing(v) ? "#null"  :
+                   v
+end
+
+function kdl_show(k::KDLNode)
+    s = IOBuffer()
+    if !ismissing(k.a)
+        for (k, v) in k.a
+            if ismissing(v)
+                print(s, k, " ")
+            else
+                print(s, k, "=", kdl_value(v), " ")
+            end
+        end
+    end
+    if !ismissing(k.d)
+        println(s, "{")
+        for (k, v) in k.d
+            if ismissing(v)
+                println(s, k)
+            else
+                println(s, k, " ", kdl_value(v))
+            end
+        end
+        print(s, "}")
+    end
+    lines = filter(split(String(take!(s)), '\n')) do line
+        !isnothing(match(r"[^\s]+", line)) && line != ""
+    end
+    length(lines) > 1 && for i=2:length(lines)-1
+        lines[i] = "    " * lines[i]
+    end
+    return lines
+end
+
+function Base.show(io::IO, k::KDLNode)
+    lines = kdl_show(k)
+    length(lines) == 0 && return
+    println(io, lines[1])
+    length(lines) == 1 && return
+    for line in lines[2:end-1]
+        io isa IOBuffer && print(io, "\t")
+        println(io, line)
+    end
+    println(io, lines[end])
+end
+
+Base.merge(a, _::Missing) = a
+Base.merge(_::Missing, b) = b
+Base.merge(_::Missing, _::Missing) = missing
+
+Base.merge(k1::KDLNode, k2::KDLNode) =
+    KDLNode(merge(k1.a, k2.a), merge(k1.d, k2.d))
+
+Base.merge(k::KDLNode, d::Dict) = KDLNode(k.a, merge(k.d, d))
+Base.merge(d::Dict, k::KDLNode) = KDLNode(k.a, merge(k.d, d))
+Base.merge!(k::KDLNode, d::Dict) = begin
+    merge!(k.d, d)
+    k
+end
+
+Base.merge!(k1::KDLNode, k2::KDLNode) = begin
+    merge!(k1.d, copy(k2.d))
+    merge!(k1.a, copy(k2.a))
+    k1
+end
+
+Base.empty!(k::KDLNode) = begin
+    empty!(k.d)
+    empty!(k.a)
+end
+Base.getindex(k :: KDLNode, i) = k.d[i]
+function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple}) 
+    length(i) == 0      && error("Zero-length index for $k")
+    length(i) == 1      && return k[i[1]]
+    k[i[1]] isa KDLNode && return k[i[1]][i[2:end]]
+    return k[i]
+end
+Base.getindex(k :: KDLNode, i...)   = k[i]
+Base.haskey(k :: KDLNode, i)        = haskey(k.d, i) || i in k()
+Base.setindex!(k :: KDLNode, i,  v) = k.d[i] = v
+function Base.setindex!(
+    k :: KDLNode,
+    i :: Union{Vector,Tuple},
+    v) 
+
+    length(i) == 0      && error("Zero-length index for $k")
+    length(i) == 1      && return setindex!(k, i[1], v)
+    k[i[1]] isa KDLNode && return setindex!(k[i[1]], i[2:end], v)
+    k[i] = v
+    nothing
+end
+
+function (k::KDLNode)()
+    keys(k.a) |> Tuple
+end
+
+(k::KDLNode)(i)   = k.a[i]
+(k::KDLNode)(i,n) = k.a[i] = n
+
+⇜(k::KDLNode, i) = !ismissing(k[i]) 
+←(k::KDLNode, i) = ismissing(k[i])
 
 end # module KDL
