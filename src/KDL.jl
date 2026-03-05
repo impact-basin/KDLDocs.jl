@@ -7,8 +7,8 @@ export KDLNode
 # grammar reference: https://kdl.dev/spec/#name-slashdash-comments
 
 using  Match
+using  StyledStrings
 import PikaParser as P
-using Term: Tree, Theme
 
 struct KDLNode
     a :: Union{Dict, Missing}
@@ -106,6 +106,14 @@ function Base.setindex!(
     length(i) == 0 ? error("Zero-length index for $k") :
     length(i) == 1 ? setindex!(k, i[1], v)             :
                      setindex!(k[i[1]], i[2:end], v)
+end
+
+function (k::KDLNode)()
+    ret = []
+    for (k, _) in k.a
+        push!(ret, k)
+    end
+    ret |> Tuple
 end
 
 (k::KDLNode)(i)   = k.a[i]
@@ -380,7 +388,6 @@ semantics = P.@semantics :kdl m v begin
     end
 
     :sign => begin
-        @show ":sign" m.view
         @match m.view begin
             "-" => -1
             "+" =>  1
@@ -389,24 +396,20 @@ semantics = P.@semantics :kdl m v begin
     end
 
     :integer => begin
-        @show ":integer" m.view
         parse(Int, m.view)
     end
 
     :exponent => begin
-        @show ":exponent" m.view v
         m.view == "" && return nothing
         v[1][2] * v[1][3]
     end
 
     :decpart => begin
-        @show ":decpart" m.view v
         m.view == "" && return nothing
         v[1][2] * 10^(-ceil(log10(v[1][2])))
     end
 
     :decimal => begin
-        @show ":decimal" v
         x = v[1] * v[2]
         if !isnothing(v[3])
             x += v[3]
@@ -445,34 +448,23 @@ semantics = P.@semantics :kdl m v begin
     :prop => (v[1], v[5])
 
     :node_children => begin
-        @info ":node_children"
-        @show m.view
-        @show v[3]
-        # fixme -- turn this into a dictionary
         ret = Dict()
         for node in v[3]
-            @show "Iterating" node
             s, a, b = node
-            @show merge!(ret, Dict(s => KDLNode(a, b)))
+            merge!(ret, Dict(s => KDLNode(a, b)))
         end
-        @show ret
+        ret
     end
 
     :arg => v[1] isa Tuple ? v[1] : v[1], missing
 
     :node_args => begin
         args = Dict()
-        @show v
         for elem in v
-            @info "node_args iteration"
-            @show elem
-
             @match elem begin
-
                 (k, v) => begin
                     args[k] = v
                 end
-
                 v => begin
                     args[v] = missing
                 end
@@ -482,23 +474,15 @@ semantics = P.@semantics :kdl m v begin
     end
 
     :node_with_children => begin
-        @info ":node_with_children"
-        @show m.view
-        @show v
-        @show (v[1], v[3], v[5])
+        (v[1], v[3], v[5])
     end
 
     :node_only_params => begin
-        @info ":node_only_params"
-        @show m.view
-        @show (v[1], v[3], missing)
+        (v[1], v[3], missing)
     end
 
     :node_only_children => begin
-        @info ":node_only_children"
-        @show m.view
-        @show v
-        @show (v[1], missing, v[3])
+        (v[1], missing, v[3])
     end
 
     :node  => begin
@@ -507,18 +491,16 @@ semantics = P.@semantics :kdl m v begin
              s :: Symbol    => (s, missing, missing)
             _ => error("Weird node: $(v[1])")
         end
-        @show ret
+        ret
     end
+
+    :slashdash => missing
 
     :knode => v[1]
 
     :kdl => begin
-        @info ":kdl"
-        @show v[2]
         ret = KDLNode()
         for node in v[2]
-            @info "kdl: iterating"
-            @show node
             s, a, b = node
             merge!(ret, Dict(s => KDLNode(a, b)))
         end

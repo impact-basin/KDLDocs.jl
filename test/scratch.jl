@@ -2,9 +2,9 @@ using KDL
 
 
 txt = """
-    node foo123 = #true bar=34.56e7 { 
+    node foo123 = #true bar=34.56e7 fubar { 
         baz abc = def {
-            qux
+            qux 1 2 3
         }
     }
 """
