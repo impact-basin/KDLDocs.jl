@@ -159,12 +159,7 @@ syntax = P.@syntax :kdl begin
 
     :singleline_string => r"[\"]([^\"\\]|\\.)*\"",
     :multiline_string  => r"(\"\"\")([^\"\\]|\\[\s\S])*(\"\"\")",
-
-    #=:raw_string => seq(=#
-    #=    token('#'),=#
-    #=    r"[^#]*",=#
-    #=    token('#'),=#
-    #=),=#
+    :raw_string => r"#([=]+)((.|\n)*)(\1)#",
 
     #=:identifier_string => first(=#
     #=    :dotted_ident,=#
@@ -173,9 +168,9 @@ syntax = P.@syntax :kdl begin
     #=),=#
 
     :string => first(
-        #=:raw_string,=#
         :multiline_string,
         :singleline_string,
+        :raw_string,
     ),
 
     :type => seq(
@@ -189,8 +184,8 @@ syntax = P.@syntax :kdl begin
         first(
             :number,
             :keyword,
-            :string,
             :ident,
+            :string,
         ),
         :ws,
     ),
@@ -327,16 +322,14 @@ semantics = P.@semantics :kdl m v begin
         kdl_sparse(m.view[4:end-3])
     end
 
-    :string => begin
-        @show ":string" m.view v
-        v[1]
+    :raw_string => begin
+        String(match(r"#([=]+)((.|\n)*)(\1)#", m.view)[2])
     end
 
-    #=:string => begin=#
-    #=    @info "String"=#
-    #=    @show v=#
-    #=    m.view=#
-    #=end=#
+    :string => begin
+        @show ":string" m.view v typeof(v[1])
+        v[1]
+    end
 
     :prop => (v[1], v[5])
 
@@ -403,61 +396,54 @@ end
 
 function kdl_sparse(s)
     replace(s,
-        raw"\n" => "\n",
-        raw"\r" => "\r",
-        raw"\t" => "\t",
-        raw"\\" => "\\",
-        raw"\"" => "\"",
-        raw"\b" => "\b",
+        raw"\n" => "\n", raw"\r" => "\r", raw"\t" => "\t",
+        raw"\\" => "\\", raw"\"" => "\"", raw"\b" => "\b",
         raw"\f" => "\f",
     ) |> String
 end
 
 function kdl_desparse(s)
     replace(s,
-        "\n" => raw"\n",
-        "\r" => raw"\r",
-        "\t" => raw"\t",
-        "\\" => raw"\\",
-        "\"" => raw"\"",
-        "\b" => raw"\b",
+        "\n" => raw"\n", "\r" => raw"\r", "\t" => raw"\t",
+        "\\" => raw"\\", "\"" => raw"\"", "\b" => raw"\b",
         "\f" => raw"\f",
     ) |> String
 end
 
-function kdl_value(v)
-    @show v typeof(v)
-    v == Inf     ? "#inf"                   :
-    v == -Inf    ? "#-inf"                  :
-    v == NaN     ? "#nan"                   :
-    v == true    ? "#true"                  :
-    v == false   ? "#false"                 :
-    v isa String ? "\"$(kdl_desparse(v))\"" :
-    isnothing(v) ? "#null"                  :
-                   v
+function kdl_repr(v)
+    v == Inf      ? "#inf"                    :
+    v == -Inf     ? "#-inf"                   :
+    v == NaN      ? "#nan"                    :
+    v == true     ? "#true"                   :
+    v == false    ? "#false"                  :
+    v isa KDLNode ? prod(kdl_show(v) .* "\n") :
+    v isa String  ? "\"$(kdl_desparse(v))\""  :
+    v isa Symbol  ? repr(v)[2:end]            :
+    isnothing(v)  ? "#null"                   :
+                    v
 end
 
-function kdl_show(k::KDLNode)
+function kdl_show(k::KDLNode; toplevel=false)
     s = IOBuffer()
     if !ismissing(k.a)
         for (k, v) in k.a
             if ismissing(v)
-                print(s, k, " ")
+                print(s, kdl_repr(k), " ")
             else
-                print(s, k, "=", kdl_value(v), " ")
+                print(s, kdl_repr(k), "=", kdl_repr(v), " ")
             end
         end
     end
     if !ismissing(k.d)
-        println(s, "{")
+        toplevel || println(s, "{")
         for (k, v) in k.d
             if ismissing(v)
-                println(s, k)
+                println(s, kdl_repr(k))
             else
-                println(s, k, " ", kdl_value(v))
+                println(s, kdl_repr(k), " ", kdl_repr(v))
             end
         end
-        print(s, "}")
+        toplevel || print(s, "}")
     end
     lines = filter(split(String(take!(s)), '\n')) do line
         !isnothing(match(r"[^\s]+", line)) && line != ""
@@ -469,7 +455,8 @@ function kdl_show(k::KDLNode)
 end
 
 function Base.show(io::IO, k::KDLNode)
-    lines = kdl_show(k)
+    
+    lines = kdl_show(k; toplevel=true)
     length(lines) == 0 && return
     println(io, lines[1])
     length(lines) == 1 && return
