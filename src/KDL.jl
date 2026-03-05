@@ -21,7 +21,7 @@ struct KDLNode
     KDLNode(_::Missing, _::Missing) = new(missing, missing)
     KDLNode(a::Dict, d::Dict) = new(a, d)
     KDLNode(a::Dict, d::Missing) = new(a, d)
-    KDLNode(_::Missing, d::Dict) = new(missing, d)
+    KDLNode(a::Missing, d::Dict) = new(a, d)
 end
 
 
@@ -157,28 +157,13 @@ syntax = P.@syntax :kdl begin
     #=    :ident,=#
     #=),=#
 
-    #=:singleline_string => seq(=#
-    #=    token('"'),=#
-    #=    many(satisfy(x -> x != '"')),=#
-    #=    token('"'),=#
-    #=),=#
-
-    #=:multiline_string => seq(=#
-    #=    tokens("\"\"\""),=#
-    #=    :newline,=#
-    #=    r"(?!\"\"\").{3}",=#
-    #=    tokens("\"\"\""),=#
-    #=),=#
+    :singleline_string => r"[\"]([^\"\\]|\\.)*\"",
+    :multiline_string  => r"(\"\"\")([^\"\\]|\\[\s\S])*(\"\"\")",
 
     #=:raw_string => seq(=#
     #=    token('#'),=#
     #=    r"[^#]*",=#
     #=    token('#'),=#
-    #=),=#
-
-    #=:quoted_string => first(=#
-    #=    :singleline_string,=#
-    #=    #=:multiline_string,=#=#
     #=),=#
 
     #=:identifier_string => first(=#
@@ -187,11 +172,11 @@ syntax = P.@syntax :kdl begin
     #=    :ident,=#
     #=),=#
 
-    #=:string => first(=#
-    #=    #=:raw_string,=#=#
-    #=    #=:quoted_string,=#=#
-    #=    :ident,=#
-    #=),=#
+    :string => first(
+        #=:raw_string,=#
+        :multiline_string,
+        :singleline_string,
+    ),
 
     :type => seq(
         token('('), :ws,
@@ -204,8 +189,8 @@ syntax = P.@syntax :kdl begin
         first(
             :number,
             :keyword,
-            #=:signed_ident,=#
-            :ident, # :string
+            :string,
+            :ident,
         ),
         :ws,
     ),
@@ -332,15 +317,20 @@ semantics = P.@semantics :kdl m v begin
     :type => KDLNode(:type => v[3])
     :value => v[2][1]
 
-    #=:signed_ident => begin=#
-    #=    # this will probably break.=#
-    #=    @info "signed ident"=#
-    #=    @show v=#
-    #=    isnothing(v[1]) && return v[2]=#
-    #=    return Dict(=#
-    #=        v[2] => Dict(:sign => v[1]),=#
-    #=    )=#
-    #=end=#
+    :singleline_string => begin
+        @show ":singleline_string" m.view
+        kdl_sparse(m.view[2:end-1])
+    end
+
+    :multiline_string => begin
+        @show ":multiline_string" m.view
+        kdl_sparse(m.view[4:end-3])
+    end
+
+    :string => begin
+        @show ":string" m.view v
+        v[1]
+    end
 
     #=:string => begin=#
     #=    @info "String"=#
@@ -411,13 +401,39 @@ semantics = P.@semantics :kdl m v begin
     end
 end
 
+function kdl_sparse(s)
+    replace(s,
+        raw"\n" => "\n",
+        raw"\r" => "\r",
+        raw"\t" => "\t",
+        raw"\\" => "\\",
+        raw"\"" => "\"",
+        raw"\b" => "\b",
+        raw"\f" => "\f",
+    ) |> String
+end
+
+function kdl_desparse(s)
+    replace(s,
+        "\n" => raw"\n",
+        "\r" => raw"\r",
+        "\t" => raw"\t",
+        "\\" => raw"\\",
+        "\"" => raw"\"",
+        "\b" => raw"\b",
+        "\f" => raw"\f",
+    ) |> String
+end
+
 function kdl_value(v)
-    v == Inf     ? "#inf"   :
-    v == -Inf    ? "#-inf"  :
-    v == NaN     ? "#nan"   :
-    v == true    ? "#true"  :
-    v == false   ? "#false" :
-    isnothing(v) ? "#null"  :
+    @show v typeof(v)
+    v == Inf     ? "#inf"                   :
+    v == -Inf    ? "#-inf"                  :
+    v == NaN     ? "#nan"                   :
+    v == true    ? "#true"                  :
+    v == false   ? "#false"                 :
+    v isa String ? "\"$(kdl_desparse(v))\"" :
+    isnothing(v) ? "#null"                  :
                    v
 end
 

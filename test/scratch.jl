@@ -3,7 +3,7 @@ using KDL
 
 txt = """
     node foo123 = #true bar=34.56e7 fubar { 
-        baz abc = def {
+        baz abc = \"def\\n\" {
             qux 1 2 3
         }
     }
