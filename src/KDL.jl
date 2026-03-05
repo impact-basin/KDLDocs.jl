@@ -23,11 +23,50 @@ struct KDLNode
     KDLNode(_::Missing, d::Dict) = new(missing, d)
 end
 
-Base.show(io::IO, k::KDLNode) =
-    print(io, "KDLNode { ",
-              "Args:", k.a, " ",
-              "Body:", k.d, " }"
-    )
+function kdl_value(v)
+    v == Inf     ? "#inf"   :
+    v == -Inf    ? "#-inf"  :
+    v == NaN     ? "#nan"   :
+    v == true    ? "#true"  :
+    v == false   ? "#false" :
+    isnothing(v) ? "#null"  :
+                   v
+end
+
+function Base.show(io::IO, k::KDLNode)
+    s = IOBuffer()
+    if !ismissing(k.a)
+        for (k, v) in k.a
+            if ismissing(v)
+                print(io, k, " ")
+            else
+                print(io, k, "=", kdl_value(v), " ")
+            end
+        end
+    end
+    if !ismissing(k.d)
+        io isa IOBuffer && println(s, "{")
+        for (k, v) in k.d
+            if ismissing(v)
+                println(s, k)
+            else
+                println(s, k, " ", kdl_value(v))
+            end
+        end
+        io isa IOBuffer && print(s, "}")
+    end
+    lines = filter(split(String(take!(s)), '\n')) do line
+        !isnothing(match(r"[^\s]+", line)) && line != ""
+    end
+    length(lines) == 0 && return
+    println(io, lines[1])
+    length(lines) == 1 && return
+    for line in lines[2:end-1]
+        io isa IOBuffer && print(io, "\t")
+        println(io, line)
+    end
+    println(io, lines[end])
+end
 
 Base.merge(a, _::Missing) = a
 Base.merge(_::Missing, b) = b
@@ -139,25 +178,25 @@ syntax = P.@syntax :kdl begin
     ),
 
     :integer => seq(
-        :unicode_space,
         r"[0-9]+[0-9_]*",
-        :unicode_space,
     ),
 
-    :exponent => seq(
+    :exponent => maybe(seq(
         r"e"i,
         :sign,
-        :integer
-    ),
+        :integer,
+    )),
+
+    :decpart => maybe(seq(
+        token('.'),
+        :integer,
+    )),
 
     :decimal => seq(
         :sign,
         :integer,
-        maybe(seq(
-            token('.'),
-            :integer
-        )),
-        maybe(:exponent)
+        :decpart,
+        :exponent,
     ),
 
     :hex => seq(
@@ -341,12 +380,47 @@ semantics = P.@semantics :kdl m v begin
     end
 
     :sign => begin
+        @show ":sign" m.view
         @match m.view begin
-            "-" => :-
-            "+" => :+
-            _   => nothing
+            "-" => -1
+            "+" =>  1
+            _   =>  1
         end
     end
+
+    :integer => begin
+        @show ":integer" m.view
+        parse(Int, m.view)
+    end
+
+    :exponent => begin
+        @show ":exponent" m.view v
+        m.view == "" && return nothing
+        v[1][2] * v[1][3]
+    end
+
+    :decpart => begin
+        @show ":decpart" m.view v
+        m.view == "" && return nothing
+        v[1][2] * 10^(-ceil(log10(v[1][2])))
+    end
+
+    :decimal => begin
+        @show ":decimal" v
+        x = v[1] * v[2]
+        if !isnothing(v[3])
+            x += v[3]
+        end
+        if !isnothing(v[4])
+            x *= 10^v[4]
+        end
+        x
+    end
+
+    :hex    => parse(Int, m.view)
+    :octal  => parse(Int, m.view)
+    :binary => parse(Int, m.view)
+    :number => v[1]
 
     :ident => Symbol(m.view)
     :type => KDLNode(:type => v[3])

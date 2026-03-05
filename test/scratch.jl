@@ -1,14 +1,8 @@
 using KDL
 
-txt = """ ui {
-    pane_frames {
-        hide_session_name #true
-    }
-}
-"""
 
 txt = """
-    ui foo = #true bar { 
+    node foo123 = #true bar=34.56e7 { 
         baz abc = def {
             qux
         }
