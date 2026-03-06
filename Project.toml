@@ -12,5 +12,4 @@ StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 [compat]
 Match = "2.4.1"
 Moshi = "0.3.7"
-PikaParser = "0.6.1"
 StyledStrings = "1.11.0"

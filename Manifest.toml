@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "1f004707262d29f151605f332b34d3355488831a"
+project_hash = "a4e4b8d48b0e29cc8f46c3285907d3973b0469b8"
 
 [[deps.DocStringExtensions]]
 git-tree-sha1 = "7442a5dfe1ebb773c29cc2962a8980f47221d76c"
@@ -50,9 +50,7 @@ version = "1.8.1"
 
 [[deps.PikaParser]]
 deps = ["DocStringExtensions", "MacroTools"]
-git-tree-sha1 = "cb6bcbbda2420d38b270d74459ae2da1c57b9ba3"
-repo-rev = "master"
-repo-url = "https://github.com/impact-basin/PikaParser.jl"
+path = "../PikaParser.jl"
 uuid = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
 version = "0.6.1"
 
