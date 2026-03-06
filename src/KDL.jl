@@ -242,6 +242,7 @@ syntax = P.@syntax :kdl begin
         :node,
     )
 
+    # TODO: terminators.
     :knode => first(
         :slashdash,
         :node
