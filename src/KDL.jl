@@ -34,13 +34,13 @@ syntax = P.@syntax :kdl begin
         token('\u2005'), token('\u2006'), token('\u2007'),
         token('\u2008'), token('\u2009'), token('\u200A'),
         token('\u202F'), token('\u205F'), token('\u3000'),
-    ),
+    )
 
     :newline => first(
         tokens("\u000D\u000A"),           token('\u000D'),
         token('\u000A'), token('\u0085'), token('\u000B'),
         token('\u000C'), token('\u2028'), token('\u2029'),
-    ), 
+    )
 
     :singleline_comment => seq(
         tokens("//"),
@@ -49,84 +49,84 @@ syntax = P.@syntax :kdl begin
             satisfy(_ -> true),
         )),
         :newline,
-    ),
+    )
 
     :multiline_comment => seq(
         tokens("/*"),
         many(r"(?!\*/).{2}"),
         tokens("*/"),
-    ),
+    )
 
     :ws => many(first(
         :multiline_comment,
         :singleline_comment,
         :unicode_space,
         :newline
-    )),
+    ))
 
     #=:bom => token('\uFEEF'),=#
 
     :boolean => first(
         tokens("#true"),
         tokens("#false")
-    ),
+    )
 
     :keywordnumber => first(
         tokens("#-inf"),
         tokens("#inf"),
         tokens("#nan")
-    ),
+    )
 
     :keyword => first(
         :boolean,
         tokens("#null")
-    ),
+    )
 
     :sign => first(
         token('+'),
         token('-'),
         epsilon,
-    ),
+    )
 
     :integer => seq(
         r"[0-9]+[0-9_]*",
-    ),
+    )
 
     :exponent => maybe(seq(
         r"e"i,
         :sign,
         :integer,
-    )),
+    ))
 
     :decpart => maybe(seq(
         token('.'),
         :integer,
-    )),
+    ))
 
     :decimal => seq(
         :sign,
         :integer,
         :decpart,
         :exponent,
-    ),
+    )
 
     :hex => seq(
         :sign,
         tokens("0x"),
         r"[0-9a-fA-F]+[0-9a-fA-F_]*",
-    ),
+    )
 
     :octal => seq(
         :sign,
         tokens("0o"),
         r"[0-7]+[0-7_]*",
-    ),
+    )
 
     :binary => seq(
         :sign,
         tokens("0b"),
         r"[0-1]+[0-1_]*",
-    ),
+    )
 
     :number => first(
         :keywordnumber,
@@ -134,7 +134,7 @@ syntax = P.@syntax :kdl begin
         :octal,
         :binary,
         :decimal
-    ),
+    )
 
     :ident => seq(
         not_followed_by(tokens("true")),
@@ -144,7 +144,7 @@ syntax = P.@syntax :kdl begin
         not_followed_by(tokens("-inf")),
         not_followed_by(tokens("nan")),
         r"[a-zA-Z_]+[a-zA-Z0-9_]*",
-    ),
+    )
 
     #=:signed_ident => seq(=#
     #=    :sign,=#
@@ -157,9 +157,9 @@ syntax = P.@syntax :kdl begin
     #=    :ident,=#
     #=),=#
 
-    :singleline_string => r"[\"]([^\"\\]|\\.)*\"",
-    :multiline_string  => r"(\"\"\")([^\"\\]|\\[\s\S])*(\"\"\")",
-    :raw_string => r"#([=]+)((.|\n)*)(\1)#",
+    :singleline_string => r"[\"]([^\"\\]|\\.)*\""
+    :multiline_string  => r"(\"\"\")([^\"\\]|\\[\s\S])*(\"\"\")"
+    :raw_string => r"#([=]+)((.|\n)*)(\1)#"
 
     #=:identifier_string => first(=#
     #=    :dotted_ident,=#
@@ -171,13 +171,18 @@ syntax = P.@syntax :kdl begin
         :multiline_string,
         :singleline_string,
         :raw_string,
-    ),
+    )
+
+    :sident => first(
+        :ident,
+        :string
+    )
 
     :type => seq(
         token('('), :ws,
         :ident,     :ws,
         token(')'), :ws,
-    ),
+    )
 
     :value => seq(
         maybe(:type),
@@ -188,59 +193,59 @@ syntax = P.@syntax :kdl begin
             :string,
         ),
         :ws,
-    ),
+    )
 
     :prop => seq(
-        :ident,     :ws,
+        :sident,    :ws,
         token('='), :ws,
         :value,     :ws,
-    ),
+    )
 
     :node_children => seq(
         token('{'),  :ws,
         some(:node), :ws,
         token('}'),  :ws,
-    ),
+    )
 
     :arg => first(
         :prop,
         :value,
-    ),
+    )
 
-    :node_args => some(:arg),
+    :node_args => some(:arg)
 
     :node_with_children => seq(
-        :ident,         :ws,
+        :sident,        :ws,
         :node_args,     :ws,
         :node_children, :ws,
-    ),
+    )
 
     :node_only_params => seq(
-        :ident,     :ws,
+        :sident,    :ws,
         :node_args, :ws,
-    ),
+    )
 
     :node_only_children => seq(
-        :ident,         :ws,
+        :sident,        :ws,
         :node_children, :ws,
-    ),
+    )
 
     :node => first(
         :node_with_children,
         :node_only_children,
         :node_only_params,
-        :ident
-    ),
+        :sident
+    )
 
     :slashdash => seq(
         tokens("/-"),
         :node,
-    ),
+    )
 
     :knode => first(
         :slashdash,
         :node
-    ),
+    )
 
     :kdl => seq(
         :ws,
@@ -308,9 +313,10 @@ semantics = P.@semantics :kdl m v begin
     :binary => parse(Int, m.view)
     :number => v[1]
 
-    :ident => Symbol(m.view)
-    :type => KDLNode(:type => v[3])
-    :value => v[2][1]
+    :ident  => Symbol(m.view)
+    :sident => v[1]
+    :type   => KDLNode(:type => v[3])
+    :value  => v[2][1]
 
     :singleline_string => begin
         @show ":singleline_string" m.view
