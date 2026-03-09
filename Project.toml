@@ -4,12 +4,21 @@ version = "0.1.0"
 authors = ["henry eshbaugh <henry.eshbaugh@physics.ox.ac.uk>"]
 
 [deps]
+AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Match = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
 Moshi = "2e0e35c7-a2e4-4343-998d-7ef72827ed2d"
 PikaParser = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+PrettyPrinting = "54e16d92-306c-5ea0-a30b-337be88ac337"
 StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 
 [compat]
+AbstractTrees = "0.4.5"
+DataStructures = "0.19.3"
 Match = "2.4.1"
 Moshi = "0.3.7"
+PikaParser = "0.6.1"
+PrecompileTools = "1.3.3"
+PrettyPrinting = "0.4.2"
 StyledStrings = "1.11.0"
