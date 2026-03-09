@@ -29,6 +29,7 @@ function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple})
     return k[i]
 end
 Base.getindex(k :: KDLNode, i...)   = k[i]
+Base.getindex(k :: KDLNode)         = keys(k.body)
 Base.haskey(k :: KDLNode, i)        = haskey(k.body, i) || i in k()
 Base.setindex!(k :: KDLNode, i,  v) = k.body[v] = i
 
