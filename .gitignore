@@ -3,3 +3,6 @@ docs/build/
 
 # Local Julia depot used when the default depot is not writable
 .julia_depot/
+
+# Manifests are resolved per environment, not shipped
+Manifest.toml
