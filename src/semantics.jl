@@ -76,45 +76,37 @@ function kdl_unescape(s)
     i = firstindex(s)
     n = lastindex(s)
     while i <= n
-        c = s[i]
-        if c == '\\'
-            ni = nextind(s, i)
-            ni > n && throw(KDLParseError("trailing backslash in string"))
-            c2 = s[ni]
-            if c2 == 'n'
-                write(out, '\n')
-            elseif c2 == 'r'
-                write(out, '\r')
-            elseif c2 == 't'
-                write(out, '\t')
-            elseif c2 == 'b'
-                write(out, '\b')
-            elseif c2 == 'f'
-                write(out, '\f')
-            elseif c2 == 's'
-                write(out, ' ')
-            elseif c2 == '\\'
-                write(out, '\\')
-            elseif c2 == '"'
-                write(out, '"')
-            elseif c2 == 'u'
-                cp, i = kdl_unicode_escape(s, ni)
-                write(out, cp)
-                continue
-            elseif is_unicode_space(c2) || is_newline(c2)
-                # escaped whitespace: discard the backslash and all following whitespace
-                i = nextind(s, ni)
-                while i <= n && (is_unicode_space(s[i]) || is_newline(s[i]))
-                    i = nextind(s, i)
-                end
-                continue
-            else
-                throw(KDLParseError("invalid escape sequence `\\$c2` in string"))
-            end
-            i = nextind(s, ni)
-        else
-            write(out, c)
+        if s[i] != '\\'
+            write(out, s[i])
             i = nextind(s, i)
+            continue
+        end
+        ni = nextind(s, i)
+        ni > n && throw(KDLParseError("trailing backslash in string"))
+        @match s[ni] begin
+            'n'  => (write(out, '\n'); i = nextind(s, ni))
+            'r'  => (write(out, '\r'); i = nextind(s, ni))
+            't'  => (write(out, '\t'); i = nextind(s, ni))
+            'b'  => (write(out, '\b'); i = nextind(s, ni))
+            'f'  => (write(out, '\f'); i = nextind(s, ni))
+            's'  => (write(out, ' ');  i = nextind(s, ni))
+            '\\' => (write(out, '\\'); i = nextind(s, ni))
+            '"'  => (write(out, '"');  i = nextind(s, ni))
+            'u'  => begin
+                cp, j = kdl_unicode_escape(s, ni)
+                write(out, cp)
+                i = j
+            end
+            _    => begin
+                if is_unicode_space(s[ni]) || is_newline(s[ni])
+                    i = nextind(s, ni)
+                    while i <= n && (is_unicode_space(s[i]) || is_newline(s[i]))
+                        i = nextind(s, i)
+                    end
+                else
+                    throw(KDLParseError("invalid escape sequence `\\$(s[ni])` in string"))
+                end
+            end
         end
     end
     String(take!(out))
