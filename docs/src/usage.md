@@ -54,7 +54,14 @@ Child nodes nest inside a node's braces, and they are stored by name. Reading a
 name as a field returns the child; for duplicate names, the last occurrence:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"package { name my_pkg; dependencies { lodash optional=#true config=9.3 } }";
+julia> doc = kdl"""
+       package {
+           name my_pkg
+           dependencies {
+               lodash optional=#true config=9.3
+           }
+       }
+       """;
 
 julia> doc.package isa KDLNode
 true
@@ -75,7 +82,11 @@ true
 An absent child raises a `FieldError`, so test with [`haskey`](@ref) first:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"package { name my_pkg }";
+julia> doc = kdl"""
+       package {
+           name my_pkg
+       }
+       """;
 
 julia> haskey(doc.package, :name)
 true
@@ -85,7 +96,11 @@ true
 returns the ordered `(name, node)` pairs:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"package { name my_pkg }";
+julia> doc = kdl"""
+       package {
+           name my_pkg
+       }
+       """;
 
 julia> propertynames(doc.package)
 (:name,)
@@ -97,7 +112,11 @@ true
 Assign a field to add or replace a child:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"package { name my_pkg }";
+julia> doc = kdl"""
+       package {
+           name my_pkg
+       }
+       """;
 
 julia> doc.package.new_child = KDLNode();
 
@@ -216,7 +235,10 @@ last occurrence, while [`children`](@ref) keeps every occurrence in document
 order:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl("node\nnode");
+julia> doc = kdl"""
+       node
+       node
+       """;
 
 julia> length(children(doc))
 2
@@ -231,7 +253,11 @@ true
 through `kdl`:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl("foo 1 2 key=3 { bar }");
+julia> doc = kdl"""
+       foo 1 2 key=3 {
+           bar
+       }
+       """;
 
 julia> kdl(sprint(show, doc)) isa KDLNode
 true

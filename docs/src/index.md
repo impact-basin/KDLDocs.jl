@@ -11,7 +11,12 @@ specification](https://github.com/kdl-org/kdl/blob/main/SPEC.md), using the
 ## Quick start
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"node example=#true { foo 1 2 3; bar 4 5 6 }";
+julia> doc = kdl"""
+       node example=#true {
+           foo 1 2 3
+           bar 4 5 6
+       }
+       """;
 
 julia> doc.node[:example]
 true
@@ -38,7 +43,11 @@ nodes, and they nest inside the braces.
 serialises a node back to KDL, so the printed form round-trips:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl("node example=#true { foo 1 2 3 }");
+julia> doc = kdl"""
+       node example=#true {
+           foo 1 2 3
+       }
+       """;
 
 julia> kdl(sprint(show, doc)) isa KDLNode
 true
