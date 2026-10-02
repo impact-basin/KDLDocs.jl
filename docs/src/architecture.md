@@ -114,13 +114,15 @@ A [`KDLNode`](@ref) stores each of KDL's node parts directly:
 | `body`       | children keyed by name (last occurrence wins)             |
 | `children`   | `(name, node)` pairs in document order (duplicates)     |
 
-[`arguments`](@ref), [`properties`](@ref) and [`children`](@ref) return
-the collections.  `k[:name]` indexes a child and `k[1]` an argument;
-`k.name` reads a property (`missing` when absent); `in` tests argument
-membership; and `haskey` tests the keyed entries, properties and children.
-The `body` dict is the name-keyed view of `children`, and the ordered lists
-are what serialisation and the reference corpus tests use, so documents with
-duplicate arguments or duplicate node names round-trip correctly.
+[`arguments`](@ref), [`properties`](@ref) and [`children`](@ref) return the
+collections.  Children read as fields (`k.name`) and positional arguments by
+integer (`k[1]`); properties read by index (`k[:key]`, or `k["key"]` for a
+quoted key, with `missing` when absent); `in` tests argument membership; and
+`haskey` tests the keyed entries, properties and children.  A `Symbol` key and
+its string form name the same entry.  The `body` dict is the name-keyed view of
+`children`, and the ordered lists are what serialisation and the reference
+corpus tests use, so documents with duplicate arguments or duplicate node names
+round-trip correctly.
 
 `show` serialises a node back to KDL: arguments in order, then properties,
 then children in document order.  The result of parsing a document round-trips

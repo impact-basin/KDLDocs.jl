@@ -1,8 +1,22 @@
 # Usage
 
+KDL is a node-oriented document language. A document is a sequence of nodes,
+and each node has a name, then arguments and properties, then an optional block
+of child nodes:
+
+    node example=#true {
+        foo 1 2 3
+        bar 4 5 6
+    }
+
+Arguments are position-dependent values (`1 2 3`), properties are
+position-independent assigned values (`example=#true`), and children are full
+nodes. Values parse to Julia values: strings to `String`, numbers to `Int` or
+`Float64`, `#true` and `#false` to `Bool`, and `#null` to `nothing`.
+
 ## Parsing
 
-The entry point is [`kdl`](@ref).  It reads a string, or a string literal:
+The entry point is [`kdl`](@ref). It reads a string, or a string literal:
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl("foo 1 2 key=3");
@@ -36,63 +50,68 @@ true
 
 ## Children
 
-Child nodes are stored by name.  Indexing returns the child, and for duplicate
-names the last occurrence:
+Child nodes nest inside a node's braces, and they are stored by name. Reading a
+name as a field returns the child; for duplicate names, the last occurrence:
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl"package { name my_pkg; dependencies { lodash optional=#true config=9.3 } }";
 
-julia> doc[:package] isa KDLNode
+julia> doc.package isa KDLNode
 true
 
-julia> doc[:package, :dependencies, :lodash].optional
+julia> doc.package.dependencies.lodash[:optional]
 true
 ```
 
-`k[]` lists the child names, and [`children`](@ref) returns the ordered
-`(name, node)` pairs:
+A child whose name is not a Julia identifier is read with `var"..."`:
+
+```jldoctest; setup = :(using KDLDocs)
+julia> doc = kdl("\"my node\" 1");
+
+julia> doc.var"my node" isa KDLNode
+true
+```
+
+An absent child raises a `FieldError`, so test with [`haskey`](@ref) first:
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl"package { name my_pkg }";
 
-julia> doc[:package][]
+julia> haskey(doc.package, :name)
+true
+```
+
+[`propertynames`](@ref) lists the child names, and [`children`](@ref)
+returns the ordered `(name, node)` pairs:
+
+```jldoctest; setup = :(using KDLDocs)
+julia> doc = kdl"package { name my_pkg }";
+
+julia> propertynames(doc.package)
 (:name,)
 
 julia> [name for (name, _) in children(doc)] == [:package]
 true
 ```
 
-[`haskey`](@ref) tests the keyed entries, children and properties:
+Assign a field to add or replace a child:
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl"package { name my_pkg }";
 
-julia> haskey(doc, :package)
-true
+julia> doc.package.new_child = KDLNode();
 
-julia> haskey(doc[:package], :name)
-true
-```
-
-Add or replace children with `setindex!`:
-
-```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl"package { name my_pkg }";
-
-julia> doc[:package, :new_child] = KDLNode();
-
-julia> doc[:package, :new_child] isa KDLNode
+julia> doc.package.new_child isa KDLNode
 true
 ```
 
 ## Arguments and properties
 
-A node has positional arguments and properties.  Arguments are ordered and
-unnamed; properties are keyed.  Arguments are read by integer index, and `in`
-tests membership:
+Arguments are ordered and unnamed; properties are keyed. Arguments read by
+integer index, and `in` tests membership:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> node = kdl("foo 1 key=val 3")[:foo];
+julia> node = kdl("foo 1 key=val 3").foo;
 
 julia> arguments(node) == [1, 3]
 true
@@ -110,69 +129,77 @@ false
 Argument order is significant, and duplicate arguments are preserved:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> arguments(kdl("node arg arg")[:node]) == [:arg, :arg]
+julia> arguments(kdl("node arg arg").node) == [:arg, :arg]
 true
 ```
 
-Properties are read and set as fields.  An absent property is `missing`, so a
-property set to `#false` stays distinct from an absent one:
+Properties read by index. An absent property is `missing`, so a property set
+to `#false` stays distinct from an absent one:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> node = kdl("foo flag=#false")[:foo];
+julia> node = kdl("foo flag=#false").foo;
 
-julia> node.flag
+julia> node[:flag]
 false
 
-julia> node.nope
+julia> node[:nope]
 missing
 
 julia> haskey(node, :flag)
 true
-
-julia> propertynames(node)
-(:flag,)
 ```
 
 Set a property by assignment:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> node = kdl("foo flag=#false")[:foo];
+julia> node = kdl("foo flag=#false").foo;
 
-julia> node.flag = true
+julia> node[:flag] = true
 true
 
-julia> node.flag
-true
-```
-
-`missing` is not a KDL value, so assigning it is an error.  Delete a property
-from `properties(node)` instead:
-
-```jldoctest; setup = :(using KDLDocs)
-julia> node = kdl("foo flag=#false")[:foo];
-
-julia> try node.nope = missing catch e; e isa ArgumentError end
+julia> node[:flag]
 true
 ```
 
-A key that is not a Julia identifier needs `var"..."`:
+`missing` is not a KDL value, so assigning it is an error:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> doc = kdl("node my-key=1 \"my key\"=2")[:node];
+julia> node = kdl("foo flag=#false").foo;
 
-julia> doc.var"my-key"
+julia> try node[:nope] = missing catch e; e isa ArgumentError end
+true
+```
+
+Delete a property through `properties(node)`;
+
+```jldoctest; setup = :(using KDLDocs)
+julia> node = kdl("foo flag=#false").foo;
+
+julia> delete!(properties(node), :flag);
+
+julia> node[:flag]
+missing
+```
+
+A key that is not a Julia identifier needs the string form. A `Symbol` and its
+string form name the same property:
+
+```jldoctest; setup = :(using KDLDocs)
+julia> node = kdl("node my-key=1 \"my key\"=2").node;
+
+julia> node["my-key"]
 1
 
-julia> properties(doc)["my key"]
+julia> node["my key"]
 2
 ```
 
 ## Adding arguments
 
-`push!` appends a positional argument, and integer `setindex!` replaces one:
+`push!` appends a positional argument, and integer assignment replaces one:
 
 ```jldoctest; setup = :(using KDLDocs)
-julia> node = kdl("node 1 2")[:node];
+julia> node = kdl("node 1 2").node;
 
 julia> push!(node, 3);
 
@@ -184,9 +211,9 @@ true
 
 ## Duplicate node names
 
-A document may contain sibling nodes with the same name.  `k[:name]` returns
-the last occurrence, while [`children`](@ref) preserves every occurrence in
-document order:
+A document may hold sibling nodes with the same name. A field read returns the
+last occurrence, while [`children`](@ref) keeps every occurrence in document
+order:
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl("node\nnode");
@@ -194,7 +221,7 @@ julia> doc = kdl("node\nnode");
 julia> length(children(doc))
 2
 
-julia> doc[:node] === last(children(doc))[2]
+julia> doc.node === last(children(doc))[2]
 true
 ```
 
@@ -234,6 +261,6 @@ julia> b = kdl("bar 2");
 
 julia> m = merge(a, b);
 
-julia> arguments(m[:foo]) == [1] && arguments(m[:bar]) == [2]
+julia> arguments(m.foo) == [1] && arguments(m.bar) == [2]
 true
 ```

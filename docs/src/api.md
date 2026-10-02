@@ -27,6 +27,7 @@ KDLParseError
 
 ```@docs
 Base.getindex(k::KDLNode, i::Integer)
+Base.getindex(k::KDLNode, key::Union{Symbol,AbstractString})
 Base.getproperty(k::KDLNode, name::Symbol)
 Base.propertynames(k::KDLNode)
 Base.in(x, k::KDLNode)
@@ -37,6 +38,7 @@ Base.haskey(k::KDLNode, i)
 
 ```@docs
 Base.setindex!(k::KDLNode, v, i::Integer)
+Base.setindex!(k::KDLNode, v, key::Union{Symbol,AbstractString})
 Base.setproperty!(k::KDLNode, name::Symbol, v)
 Base.push!(k::KDLNode, v)
 Base.empty!(k::KDLNode)
