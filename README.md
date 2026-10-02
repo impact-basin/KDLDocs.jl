@@ -36,4 +36,4 @@ MIT. See [LICENSE](LICENSE).
 
 ## AI use.
 
-I wrote most of this code myself. I used an LLM to fix up interfaces and ensure adherence to the KDL standard. I verified this code and take complete responsibility for it.
+I wrote most of this code myself. I used an LLM to fix up interfaces and ensure adherence to the KDL standard. I verified this code - and like it - and take as much responsibility for it as the terms of the LICENSE will allow.
