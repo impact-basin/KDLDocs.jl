@@ -27,7 +27,7 @@ export KDLNode, KDLParseError, kdl, @kdl_str, arguments, properties, children
 
 using Match
 using DataStructures
-using PrecompileTools: @compile_workload, @setup_workload
+using PrecompileTools: @compile_workload
 using StyledStrings
 using PikaMacros
 import PikaParser
