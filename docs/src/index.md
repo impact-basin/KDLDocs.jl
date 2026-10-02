@@ -56,5 +56,4 @@ true
 ## Pages
 
   - [Usage](@ref) -- parsing, navigation, mutation, serialisation, and errors.
-  - [Architecture](@ref) -- how the parser works, and the `KDLNode` data model.
   - [API Reference](@ref) -- the documented public interface.
