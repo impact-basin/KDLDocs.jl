@@ -1,0 +1,9 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+KDLDocs = "401a1991-251b-4274-8504-ebcf13a74f85"
+
+[sources]
+KDLDocs = {path = ".."}
+
+[compat]
+Documenter = "1"

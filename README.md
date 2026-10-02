@@ -1,74 +1,35 @@
-# KDLDocs.jl -- KDL Documents in Julia
+# KDLDocs.jl
 
-This package is mainly a proving ground for a PikaParser.jl front-end.
+A parser for the [KDL Document Language](https://kdl.dev), using
+[PikaMacros](https://github.com/PikaTools/PikaMacros.jl) and
+[PikaParser](https://github.com/PikaTools/PikaParser.jl).
 
-You are, however, welcome to use it if you so desire, under the MIT license.
+This repo is verified against the test cases in [kdl-test](https://github.com/kdl-org/kdl-test) under CI.
 
-## Reading KDL
+See the [documentation](https://impact-basin.github.io/KDLDocs.jl/) for more info.
+
+## Quick start
 
 ```julia
-k = kdl(str)
-# ... or ...
-k = kdl"""
+using KDLDocs
+
+doc = kdl"""
 node example=#true {
     foo 1 2 3
-    bar 4 5 6 {
-        alpha
-        beta
-        gamma
-    }
+    bar 4 5 6
 }
 """
+
+doc.node                 # the child node `node`
+doc.node[:example]       # true
+doc.node.foo[1]          # 1
+arguments(doc.node.foo)  # [1, 2, 3]
 ```
 
-## Working with KDL
+A KDL node has arguments (positional values), properties (`key=value` pairs),
+and children (nested nodes). Children read as fields, properties and arguments
+by index, and `show` serialises any node back to KDL.
 
-Child nodes are accessible by normal indexing, which may be chained:
+## Licence
 
-```julia
-k[:node, :bar] # => KDLNode
-```
-
-The child node keys may be examined by passing no arguments to `getindex()`:
-
-```julia
-k[:node, :bar][] # => [:alpha, :beta, :gamma]
-```
-
-We may add another child with `setindex!()`:
-
-```julia
-k[:node, :bar, :delta] = KDLNode(missing, missing)
-```
-
-Arguments are accessible by using parentheses:
-
-```julia
-k[:node]() # => [:example]
-```
-
-```julia
-k[:node](:example) # => true
-```
-
-To set an argument, pass an additional argument:
-
-```julia
-k[:node](:example, false) # => node example=#false ...
-```
-
-## Writing KDL
-
-Base.show() gives you back the raw KDL:
-
-```julia
-julia> k
-node example=#true {
-    foo 1 2 3
-    bar 4 5 6 {
-        alpha
-        beta
-        gamma
-    }
-}
-```
+MIT. See [LICENSE](LICENSE).
