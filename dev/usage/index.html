@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Usage · KDLDocs.jl</title><meta name="title" content="Usage · KDLDocs.jl"/><meta property="og:title" content="Usage · KDLDocs.jl"/><meta property="twitter:title" content="Usage · KDLDocs.jl"/><meta name="description" content="Documentation for KDLDocs.jl."/><meta property="og:description" content="Documentation for KDLDocs.jl."/><meta property="twitter:description" content="Documentation for KDLDocs.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">KDLDocs.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Usage</a><ul class="internal"><li><a class="tocitem" href="#Parsing"><span>Parsing</span></a></li><li><a class="tocitem" href="#Children"><span>Children</span></a></li><li><a class="tocitem" href="#Arguments-and-properties"><span>Arguments and properties</span></a></li><li><a class="tocitem" href="#Adding-arguments"><span>Adding arguments</span></a></li><li><a class="tocitem" href="#Duplicate-node-names"><span>Duplicate node names</span></a></li><li><a class="tocitem" href="#Serialisation"><span>Serialisation</span></a></li><li><a class="tocitem" href="#Merging"><span>Merging</span></a></li></ul></li><li><a class="tocitem" href="../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/impact-basin/KDLDocs.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Usage"><a class="docs-heading-anchor" href="#Usage">Usage</a><a id="Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Usage" title="Permalink"></a></h1><p>KDL is a node-oriented document language. A document is a sequence of nodes, and each node has a name, then arguments and properties, then an optional block of child nodes:</p><pre><code class="nohighlight hljs">node example=#true {
+    foo 1 2 3
+    bar 4 5 6
+}</code></pre><p>Arguments are position-dependent values (<code>1 2 3</code>), properties are position-independent assigned values (<code>example=#true</code>), and children are full nodes. Values parse to Julia values: strings to <code>String</code>, numbers to <code>Int</code> or <code>Float64</code>, <code>#true</code> and <code>#false</code> to <code>Bool</code>, and <code>#null</code> to <code>nothing</code>.</p><h2 id="Parsing"><a class="docs-heading-anchor" href="#Parsing">Parsing</a><a id="Parsing-1"></a><a class="docs-heading-anchor-permalink" href="#Parsing" title="Permalink"></a></h2><p>The entry point is <a href="../api/#KDLDocs.kdl"><code>kdl</code></a>. It reads a string, or a string literal:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl(&quot;foo 1 2 key=3&quot;);
+
+julia&gt; doc = kdl&quot;foo 1 2 key=3&quot;;
+
+julia&gt; doc isa KDLNode
+true</code></pre><p>... a file, or an open stream:</p><pre><code class="language-julia-repl hljs">julia&gt; path = tempname();
+
+julia&gt; write(path, &quot;foo 1 2 key=3&quot;);
+
+julia&gt; KDLDocs.kdl_read(path) isa KDLNode
+true
+
+julia&gt; open(io -&gt; kdl(io), path) isa KDLNode
+true</code></pre><p>Invalid documents raise a <a href="../api/#KDLDocs.KDLParseError"><code>KDLParseError</code></a>:</p><pre><code class="language-julia-repl hljs">julia&gt; try kdl(&quot;foo =&quot;) catch e; e isa KDLParseError end
+true</code></pre><h2 id="Children"><a class="docs-heading-anchor" href="#Children">Children</a><a id="Children-1"></a><a class="docs-heading-anchor-permalink" href="#Children" title="Permalink"></a></h2><p>Child nodes nest inside a node&#39;s braces, and they are stored by name. Reading a name as a field returns the child; for duplicate names, the last occurrence:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       package {
+           name my_pkg
+           dependencies {
+               lodash optional=#true config=9.3
+           }
+       }
+       &quot;&quot;&quot;;
+
+julia&gt; doc.package isa KDLNode
+true
+
+julia&gt; doc.package.dependencies.lodash[:optional]
+true</code></pre><p>A child whose name is not a Julia identifier is read with <code>var&quot;...&quot;</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl(&quot;\&quot;my node\&quot; 1&quot;);
+
+julia&gt; doc.var&quot;my node&quot; isa KDLNode
+true</code></pre><p>An absent child raises a <code>FieldError</code>, so test with <a href="../api/#Base.haskey-Tuple{KDLNode, Any}"><code>haskey</code></a> first:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       package {
+           name my_pkg
+       }
+       &quot;&quot;&quot;;
+
+julia&gt; haskey(doc.package, :name)
+true</code></pre><p><a href="../api/#Base.propertynames-Tuple{KDLNode}"><code>propertynames</code></a> lists the child names, and <a href="../api/#KDLDocs.children"><code>children</code></a> returns the ordered <code>(name, node)</code> pairs:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       package {
+           name my_pkg
+       }
+       &quot;&quot;&quot;;
+
+julia&gt; propertynames(doc.package)
+(:name,)
+
+julia&gt; [name for (name, _) in children(doc)] == [:package]
+true</code></pre><p>Assign a field to add or replace a child:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       package {
+           name my_pkg
+       }
+       &quot;&quot;&quot;;
+
+julia&gt; doc.package.new_child = KDLNode();
+
+julia&gt; doc.package.new_child isa KDLNode
+true</code></pre><h2 id="Arguments-and-properties"><a class="docs-heading-anchor" href="#Arguments-and-properties">Arguments and properties</a><a id="Arguments-and-properties-1"></a><a class="docs-heading-anchor-permalink" href="#Arguments-and-properties" title="Permalink"></a></h2><p>Arguments are ordered and unnamed; properties are keyed. Arguments read by integer index, and <code>in</code> tests membership:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;foo 1 key=val 3&quot;).foo;
+
+julia&gt; arguments(node) == [1, 3]
+true
+
+julia&gt; node[1]
+1
+
+julia&gt; 1 in node
+true
+
+julia&gt; :val in node
+false</code></pre><p>Argument order is significant, and duplicate arguments are preserved:</p><pre><code class="language-julia-repl hljs">julia&gt; arguments(kdl(&quot;node arg arg&quot;).node) == [:arg, :arg]
+true</code></pre><p>Properties read by index. An absent property is <code>missing</code>, so a property set to <code>#false</code> stays distinct from an absent one:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;foo flag=#false&quot;).foo;
+
+julia&gt; node[:flag]
+false
+
+julia&gt; node[:nope]
+missing
+
+julia&gt; haskey(node, :flag)
+true</code></pre><p>Set a property by assignment:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;foo flag=#false&quot;).foo;
+
+julia&gt; node[:flag] = true
+true
+
+julia&gt; node[:flag]
+true</code></pre><p><code>missing</code> is not a KDL value, so assigning it is an error:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;foo flag=#false&quot;).foo;
+
+julia&gt; try node[:nope] = missing catch e; e isa ArgumentError end
+true</code></pre><p>Delete a property through <code>properties(node)</code>;</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;foo flag=#false&quot;).foo;
+
+julia&gt; delete!(properties(node), :flag);
+
+julia&gt; node[:flag]
+missing</code></pre><p>A key that is not a Julia identifier needs the string form. A <code>Symbol</code> and its string form name the same property:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;node my-key=1 \&quot;my key\&quot;=2&quot;).node;
+
+julia&gt; node[&quot;my-key&quot;]
+1
+
+julia&gt; node[&quot;my key&quot;]
+2</code></pre><h2 id="Adding-arguments"><a class="docs-heading-anchor" href="#Adding-arguments">Adding arguments</a><a id="Adding-arguments-1"></a><a class="docs-heading-anchor-permalink" href="#Adding-arguments" title="Permalink"></a></h2><p><code>push!</code> appends a positional argument, and integer assignment replaces one:</p><pre><code class="language-julia-repl hljs">julia&gt; node = kdl(&quot;node 1 2&quot;).node;
+
+julia&gt; push!(node, 3);
+
+julia&gt; node[1] = 9;
+
+julia&gt; arguments(node) == [9, 2, 3]
+true</code></pre><h2 id="Duplicate-node-names"><a class="docs-heading-anchor" href="#Duplicate-node-names">Duplicate node names</a><a id="Duplicate-node-names-1"></a><a class="docs-heading-anchor-permalink" href="#Duplicate-node-names" title="Permalink"></a></h2><p>A document may hold sibling nodes with the same name. A field read returns the last occurrence, while <a href="../api/#KDLDocs.children"><code>children</code></a> keeps every occurrence in document order:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       node
+       node
+       &quot;&quot;&quot;;
+
+julia&gt; length(children(doc))
+2
+
+julia&gt; doc.node === last(children(doc))[2]
+true</code></pre><h2 id="Serialisation"><a class="docs-heading-anchor" href="#Serialisation">Serialisation</a><a id="Serialisation-1"></a><a class="docs-heading-anchor-permalink" href="#Serialisation" title="Permalink"></a></h2><p><code>show</code> prints a node as KDL, and the output of a parsed document round-trips through <code>kdl</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl&quot;&quot;&quot;
+       foo 1 2 key=3 {
+           bar
+       }
+       &quot;&quot;&quot;;
+
+julia&gt; kdl(sprint(show, doc)) isa KDLNode
+true</code></pre><p><code>write</code> writes the same serialisation to an <code>IO</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; doc = kdl(&quot;foo 1 2 key=3&quot;);
+
+julia&gt; path = tempname();
+
+julia&gt; open(io -&gt; write(io, doc), path, &quot;w&quot;);
+
+julia&gt; KDLDocs.kdl_read(path) isa KDLNode
+true</code></pre><h2 id="Merging"><a class="docs-heading-anchor" href="#Merging">Merging</a><a id="Merging-1"></a><a class="docs-heading-anchor-permalink" href="#Merging" title="Permalink"></a></h2><p><a href="../api/#Base.merge-Tuple{KDLNode, KDLNode}"><code>merge</code></a> and <a href="../api/#Base.merge!-Tuple{KDLNode, KDLNode}"><code>merge!</code></a> combine nodes:</p><pre><code class="language-julia-repl hljs">julia&gt; a = kdl(&quot;foo 1&quot;);
+
+julia&gt; b = kdl(&quot;bar 2&quot;);
+
+julia&gt; m = merge(a, b);
+
+julia&gt; arguments(m.foo) == [1] &amp;&amp; arguments(m.bar) == [2]
+true</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 2 October 2026 16:50">Friday 2 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
