@@ -1,26 +1,33 @@
-using KDL
-using PrettyPrinting
-import PikaParser as P
+using KDLDocs
 
-data = kdl"""
-    node foo123 = #true bar=34.56e7 fubar { 
-        baz abc = \"def\\n\" #==this is a raw string=# {
+data = kdl"""node fubar { 
             qux 1 2 3
             \"node2\" 4 5 6
         }
     }
 """
 
-data = KDL.syntax(txt) |> KDL.semantics
+data = KDLDocs.syntax(txt) |> KDLDocs.semantics
 
 test = P.@semantics :kdl
 
-tree = test(KDL.syntax(txt))
+tree = test(KDLDocs.syntax(txt))
 
-test(KDL.syntax(txt))
+test(KDLDocs.syntax(txt))
 
-@time KDL.syntax(txt)
-@benchmark KDL.syntax(txt)
+@time KDLDocs.syntax(txt)
+@benchmark KDLDocs.syntax(txt)
 
-g = KDL.g(txt)
-KDL.kdl(g)
+g = KDLDocs.g(txt)
+KDLDocs.kdl(g)
+
+
+kdl"""package {
+      name my_pkg
+      version "1.2.3"
+    
+      dependencies {
+        lodash optional=#true config=9.3
+      }
+    }
+"""
