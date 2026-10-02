@@ -33,3 +33,7 @@ by index, and `show` serialises any node back to KDL.
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+## AI use.
+
+I wrote most of this code myself. I used an LLM to fix up interfaces and ensure adherence to the KDL standard. I verified this code and take complete responsibility for it.
