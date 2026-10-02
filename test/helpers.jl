@@ -110,7 +110,10 @@ end
 The positional arguments followed by the property keys of the node at
 `path` in document `k`, as a `Tuple`.
 """
-argkeys(k::KDLNode, path...) = (arguments(k[path...])..., keys(properties(k[path...]))...)
+function argkeys(k::KDLNode, path...)
+    node = foldl(getproperty, Symbol.(path); init = k)
+    (arguments(node)..., keys(properties(node))...)
+end
 
 """
     node_names(k)

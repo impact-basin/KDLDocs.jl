@@ -118,7 +118,7 @@ end
     @test argkeys(parse_doc("n \"\"\"\n  foo \\\nbar\n  baz\n  \\   \"\"\""), :n) ==
         ("foo bar\nbaz",)
     # a multi-line string may be used as a node name
-    @test parse_doc("\"\"\"\nmy name\n\"\"\" 1")["my name"] isa KDLNode
+    @test parse_doc("\"\"\"\nmy name\n\"\"\" 1").var"my name" isa KDLNode
     # syntax errors (3.12.2.4)
     @test parse_error("n \"\"\"foo\"\"\"") isa Exception            # must start with newline
     @test parse_error("n \"\"\"\n  closing quote with non-whitespace prefix\"\"\"") isa Exception
@@ -139,7 +139,7 @@ end
     @test argkeys(parse_doc("n ##\"a\"##"), :n) == ("a",)
     @test argkeys(parse_doc("n ###\"a\"##b\"###"), :n) == ("a\"##b",)
     # raw strings may be node names
-    @test parse_doc("#\"my node\"# 1")["my node"] isa KDLNode
+    @test parse_doc("#\"my node\"# 1").var"my node" isa KDLNode
     # multi-line raw strings dedent like multi-line strings
     @test argkeys(parse_doc("n #\"\"\"\nfoo\n\"\"\"#"), :n) == ("foo",)
     # spec 3.13.1: raw-multi-line example
@@ -173,23 +173,23 @@ end
     # binary
     @test argkeys(parse_doc("n 0b101 0b1_0 -0b101"), :n) == (5, 2, -5)
     # decimals
-    @test val_eq(parse_doc("n 1.5")[:n][1], 1.5)
-    @test val_eq(parse_doc("n 0.1")[:n][1], 0.1)
-    @test val_eq(parse_doc("n 123.456")[:n][1], 123.456)
-    @test val_eq(parse_doc("n -2.5")[:n][1], -2.5)
-    @test val_eq(parse_doc("n 0.0")[:n][1], 0.0)
+    @test val_eq(parse_doc("n 1.5").n[1], 1.5)
+    @test val_eq(parse_doc("n 0.1").n[1], 0.1)
+    @test val_eq(parse_doc("n 123.456").n[1], 123.456)
+    @test val_eq(parse_doc("n -2.5").n[1], -2.5)
+    @test val_eq(parse_doc("n 0.0").n[1], 0.0)
     # exponents
-    @test parse_doc("n 1e10")[:n][1] == 1e10
-    @test parse_doc("n 1e-10")[:n][1] == 1e-10
-    @test parse_doc("n 1E10")[:n][1] == 1e10
-    @test parse_doc("n 1e+10")[:n][1] == 1e10
+    @test parse_doc("n 1e10").n[1] == 1e10
+    @test parse_doc("n 1e-10").n[1] == 1e-10
+    @test parse_doc("n 1E10").n[1] == 1e10
+    @test parse_doc("n 1e+10").n[1] == 1e10
     @test argkeys(parse_doc("n 1e3 1e5"), :n) == (1000, 100000)
-    @test val_eq(parse_doc("n 1.5e3")[:n][1], 1500.0)
-    @test val_eq(parse_doc("n -2.5e-3")[:n][1], -0.0025)
-    @test val_eq(parse_doc("n 1.5e-3")[:n][1], 0.0015)
+    @test val_eq(parse_doc("n 1.5e3").n[1], 1500.0)
+    @test val_eq(parse_doc("n -2.5e-3").n[1], -0.0025)
+    @test val_eq(parse_doc("n 1.5e-3").n[1], 0.0015)
     # keyword numbers (3.14.1)
     @test argkeys(parse_doc("n #inf #-inf"), :n) == (Inf, -Inf)
-    @test isnan(parse_doc("n #nan")[:n][1])
+    @test isnan(parse_doc("n #nan").n[1])
     # invalid numbers
     @test parse_error("n .1") isa Exception
     @test parse_error("n 1.") isa Exception
@@ -207,10 +207,10 @@ end
 @testset "3.15 Booleans / 3.16 Null" begin
     # spec 3.15.1
     @test argkeys(parse_doc("my-node #true value=#false"), Symbol("my-node")) == (true, :value)
-    @test parse_doc("my-node #true value=#false")[Symbol("my-node")].value === false
+    @test parse_doc("my-node #true value=#false").var"my-node"[:value] === false
     # spec 3.16.1
     @test argkeys(parse_doc("my-node #null key=#null"), Symbol("my-node")) == (nothing, :key)
-    @test parse_doc("my-node #null key=#null")[Symbol("my-node")].key === nothing
+    @test parse_doc("my-node #null key=#null").var"my-node"[:key] === nothing
     # booleans and null as bare arguments
     @test argkeys(parse_doc("n #true #false #null"), :n) == (true, false, nothing)
     # `#` alone or truncated keywords are errors
@@ -225,14 +225,14 @@ end
     @test argkeys(parse_doc("node (u8)123"), :node) == (123,)
     @test argkeys(parse_doc("node (u8) 123"), :node) == (123,)
     @test argkeys(parse_doc("node ( u8 )123"), :node) == (123,)
-    @test val_eq(parse_doc("node (f32)1.5")[:node][1], 1.5)
-    @test arguments(parse_doc("node (u8)123 (u16)456")[:node]) == [123, 456]
+    @test val_eq(parse_doc("node (f32)1.5").node[1], 1.5)
+    @test arguments(parse_doc("node (u8)123 (u16)456").node) == [123, 456]
     # on property values
-    @test parse_doc("node prop=(u8)123")[:node].prop == 123
-    @test parse_doc("node prop=(regex).*")[:node].prop === Symbol(".*")
+    @test parse_doc("node prop=(u8)123").node[:prop] == 123
+    @test parse_doc("node prop=(regex).*").node[:prop] === Symbol(".*")
     # on node names (3.8.4)
-    @test parse_doc("(published)date \"1970-01-01\"")[:date] isa KDLNode
+    @test parse_doc("(published)date \"1970-01-01\"").date isa KDLNode
     @test argkeys(parse_doc("(published)date \"1970-01-01\""), :date) == ("1970-01-01",)
-    @test parse_doc("(contributor)person name=\"Foo McBar\"")[:person].name == "Foo McBar"
+    @test parse_doc("(contributor)person name=\"Foo McBar\"").person[:name] == "Foo McBar"
     @test parse_ok("( published )date 1")
 end

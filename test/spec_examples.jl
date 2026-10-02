@@ -4,14 +4,14 @@
 @testset "Spec 3.1.1" begin
     s = "foo {\n    bar\n}\nbaz"
     @test node_names(parse_doc(s)) == [:foo, :baz]
-    @test parse_doc(s)[:foo, :bar] isa KDLNode
+    @test parse_doc(s).foo.bar isa KDLNode
 end
 
 @testset "Spec 3.2.1" begin
     s = "foo 1 key=val 3 {\n    bar\n    (role)baz 1 2\n}"
-    @test arguments(parse_doc(s)[:foo]) == [1, 3]
-    @test parse_doc(s)[:foo].key === :val
-    @test parse_doc(s)[:foo, :bar] isa KDLNode
+    @test arguments(parse_doc(s).foo) == [1, 3]
+    @test parse_doc(s).foo[:key] === :val
+    @test parse_doc(s).foo.bar isa KDLNode
     @test argkeys(parse_doc(s), :foo, :baz) == (1, 2)
 end
 
@@ -21,7 +21,7 @@ end
 end
 
 @testset "Spec 3.4" begin
-    @test parse_doc("node a=1 a=2")[:node].a == 2
+    @test parse_doc("node a=1 a=2").node[:a] == 2
 end
 
 @testset "Spec 3.5.1" begin
@@ -29,15 +29,15 @@ end
 end
 
 @testset "Spec 3.6.1" begin
-    @test node_names(parse_doc("parent {\n    child1\n    child2\n}")[:parent]) == [:child1, :child2]
-    @test node_names(parse_doc("parent { child1; child2 }")[:parent]) == [:child1, :child2]
+    @test node_names(parse_doc("parent {\n    child1\n    child2\n}").parent) == [:child1, :child2]
+    @test node_names(parse_doc("parent { child1; child2 }").parent) == [:child1, :child2]
 end
 
 @testset "Spec 3.8.4" begin
     @test argkeys(parse_doc("node (u8)123"), :node) == (123,)
-    @test parse_doc("node prop=(regex).*")[:node].prop === Symbol(".*")
+    @test parse_doc("node prop=(regex).*").node[:prop] === Symbol(".*")
     @test argkeys(parse_doc("(published)date \"1970-01-01\""), :date) == ("1970-01-01",)
-    @test parse_doc("(contributor)person name=\"Foo McBar\"")[:person].name == "Foo McBar"
+    @test parse_doc("(contributor)person name=\"Foo McBar\"").person[:name] == "Foo McBar"
 end
 
 @testset "Spec 3.12.2.1 indented multi-line string" begin
@@ -69,16 +69,16 @@ end
 end
 
 @testset "Spec 3.14 keyword numbers" begin
-    @test parse_doc("node #inf #-inf #nan")[:node][1] === Inf
-    @test parse_doc("node #inf #-inf #nan")[:node][2] === -Inf
-    @test isnan(parse_doc("node #inf #-inf #nan")[:node][3])
+    @test parse_doc("node #inf #-inf #nan").node[1] === Inf
+    @test parse_doc("node #inf #-inf #nan").node[2] === -Inf
+    @test isnan(parse_doc("node #inf #-inf #nan").node[3])
 end
 
 @testset "Spec 3.15.1 / 3.16.1" begin
     @test argkeys(parse_doc("my-node #true value=#false"), Symbol("my-node")) == (true, :value)
-    @test parse_doc("my-node #true value=#false")[Symbol("my-node")].value === false
+    @test parse_doc("my-node #true value=#false").var"my-node"[:value] === false
     @test argkeys(parse_doc("my-node #null key=#null"), Symbol("my-node")) == (nothing, :key)
-    @test parse_doc("my-node #null key=#null")[Symbol("my-node")].key === nothing
+    @test parse_doc("my-node #null key=#null").var"my-node"[:key] === nothing
 end
 
 @testset "scratch.jl package example" begin
@@ -93,10 +93,10 @@ end
     """
     # `name my_pkg` and `version "1.2.3"` are child nodes whose bare words
     # are arguments; `dependencies` is a child node with its own children
-    @test node_names(parse_doc(s)[:package]) == [:name, :version, :dependencies]
+    @test node_names(parse_doc(s).package) == [:name, :version, :dependencies]
     @test argkeys(parse_doc(s), :package, :name) == (:my_pkg,)
     @test argkeys(parse_doc(s), :package, :version) == ("1.2.3",)
-    @test parse_doc(s)[:package, :dependencies, :lodash].optional === true
-    @test parse_doc(s)[:package, :dependencies, :lodash].config == 9.3
-    @test parse_doc(s)[:package, :dependencies] isa KDLNode
+    @test parse_doc(s).package.dependencies.lodash[:optional] === true
+    @test parse_doc(s).package.dependencies.lodash[:config] == 9.3
+    @test parse_doc(s).package.dependencies isa KDLNode
 end

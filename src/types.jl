@@ -73,37 +73,67 @@ The children of `k`, as an ordered `Vector` of `(name, node)` pairs.
 """
 children(k::KDLNode) = getfield(k, :children)
 
-"""
-    k.name
+# Julia 1.11 has no Base.FieldError.  Define the same shape there so a missing
+# child throws one type on every supported version.
+if !isdefined(Base, :FieldError)
+    struct FieldError <: Exception
+        type  :: Type
+        field :: Symbol
+    end
+    Base.showerror(io::IO, e::FieldError) =
+        print(io, "FieldError: type ", e.type, " has no field `", e.field, "`")
+end
 
-The value of the property `name` of `k`, or `missing` when absent.
-"""
-function Base.getproperty(k::KDLNode, name::Symbol)
-    props = getfield(k, :properties)
-    haskey(props, name) ? props[name] : missing
+# The stored key matching `key`, treating a Symbol and its string form as the
+# same name.  Returns `nothing` when there is no match.
+function kdl_key(d, key)
+    haskey(d, key) && return key
+    key isa Symbol         && haskey(d, string(key)) && return string(key)
+    key isa AbstractString && haskey(d, Symbol(key)) && return Symbol(key)
+    return nothing
 end
 
 """
-    k.name = v
+    k.name
 
-Set the property `name` of `k` to `v`.  A `missing` value is rejected, since
-KDL has no missing value.
+The child node named `name`.
+"""
+function Base.getproperty(k::KDLNode, name::Symbol)
+    body = getfield(k, :body)
+    key = kdl_key(body, name)
+    key === nothing && throw(FieldError(KDLNode, name))
+    body[key]
+end
+
+"""
+    k.name = node
+
+Add or replace the child node named `name`.
 """
 function Base.setproperty!(k::KDLNode, name::Symbol, v)
-    ismissing(v) &&
-        throw(ArgumentError("KDL has no missing value; delete the property instead"))
-    getfield(k, :properties)[name] = v
+    body = getfield(k, :body)
+    kids = getfield(k, :children)
+    key = something(kdl_key(body, name), name)
+    body[key] = v
+    # keep the ordered children list in sync: replace the last occurrence of
+    # the name, or append a new one
+    idx = findlast(p -> first(p) == key, kids)
+    if idx === nothing
+        push!(kids, key => v)
+    else
+        kids[idx] = key => v
+    end
     v
 end
 
 """
     propertynames(k::KDLNode)
 
-The Symbol property keys of `k`, in insertion order.  Drives tab completion on
-a parsed node.
+The child names of `k`, as a `Tuple`.  Drives tab completion on a parsed
+node.
 """
 Base.propertynames(k::KDLNode) =
-    Tuple(name for name in keys(getfield(k, :properties)) if name isa Symbol)
+    Tuple(name isa Symbol ? name : Symbol(name) for name in keys(getfield(k, :body)))
 
 """
     x in k::KDLNode
@@ -114,33 +144,46 @@ Whether `x` is one of the positional arguments of `k`.  Membership uses
 Base.in(x, k::KDLNode) = any(y -> isequal(x, y), getfield(k, :arguments))
 
 """
-    k[i]
+    k[key]
 
-The child node named `i`.
+The value of the property `key` of `k`, or `missing` when absent.  `key` may
+be a `Symbol` or a `String`, and the two forms name the same property.
+"""
+function Base.getindex(k::KDLNode, key::Union{Symbol,AbstractString})
+    props = getfield(k, :properties)
+    stored = kdl_key(props, key)
+    stored === nothing ? missing : props[stored]
+end
 
+"""
     k[i::Integer]
 
 The `i`-th positional argument of `k`.
-
-    k[i...]
-
-Chained access, e.g. `k[:a, 1]` (child `:a`, then its first argument).
-
-    k[]
-
-The names of the child nodes of `k`, as a `Tuple`.
 """
-Base.getindex(k :: KDLNode, i :: Integer) = getfield(k, :arguments)[i]
-Base.getindex(k :: KDLNode, i :: Union{Symbol,AbstractString}) = getfield(k, :body)[i]
+Base.getindex(k::KDLNode, i::Integer) = getfield(k, :arguments)[i]
 
-function Base.getindex(k :: KDLNode, i :: Union{Vector,Tuple})
-    isempty(i) && error("Zero-length index for $k")
-    length(i) == 1 && return k[i[1]]
-    return k[i[1]][i[2:end]]
+"""
+    k[key] = v
+
+Set the property `key` of `k` to `v`.  A `missing` value is rejected, since KDL
+has no missing value.
+"""
+function Base.setindex!(k::KDLNode, v, key::Union{Symbol,AbstractString})
+    ismissing(v) &&
+        throw(ArgumentError("KDL has no missing value; delete the property instead"))
+    props = getfield(k, :properties)
+    props[something(kdl_key(props, key), key)] = v
+    v
 end
 
-Base.getindex(k :: KDLNode, i...) = k[i]
-Base.getindex(k :: KDLNode)       = Tuple(keys(getfield(k, :body)))
+"""
+    k[i::Integer] = v
+
+Replace the `i`-th positional argument of `k`.
+"""
+function Base.setindex!(k::KDLNode, v, i::Integer)
+    getfield(k, :arguments)[i] = v
+end
 
 """
     haskey(k::KDLNode, i)
@@ -148,45 +191,8 @@ Base.getindex(k :: KDLNode)       = Tuple(keys(getfield(k, :body)))
 Whether `k` has a child or property named `i`.  Positional arguments are
 unnamed; test them with `i in k`.
 """
-Base.haskey(k :: KDLNode, i) = haskey(getfield(k, :properties), i) ||
-                               haskey(getfield(k, :body), i)
-
-"""
-    k[i] = v
-
-Replace the `i`-th positional argument of `k`.
-
-    k[name] = node
-
-Add or replace the child node named `name`, keeping the ordered `children`
-list in sync.  Chained and vector/tuple index forms work as well.
-"""
-function Base.setindex!(k :: KDLNode, v, i :: Integer)
-    getfield(k, :arguments)[i] = v
-end
-
-function Base.setindex!(k :: KDLNode, v, i :: Union{Symbol,AbstractString})
-    getfield(k, :body)[i] = v
-    kids = getfield(k, :children)
-    # keep the ordered children list in sync: replace the last occurrence of
-    # the name, or append a new one
-    idx = findlast(p -> first(p) == i, kids)
-    if idx === nothing
-        push!(kids, i => v)
-    else
-        kids[idx] = i => v
-    end
-    v
-end
-
-function Base.setindex!(k :: KDLNode, v, i :: Union{Vector,Tuple})
-    isempty(i) && error("Zero-length index for $k")
-    length(i) == 1 && return setindex!(k, v, i[1])
-    return setindex!(k[i[1]], v, i[2:end])
-end
-
-# chained setindex!, e.g. k[:a, :b] = node  (lowers to setindex!(k, node, :a, :b))
-Base.setindex!(k::KDLNode, v, i1, i2, rest...) = setindex!(k[i1], v, i2, rest...)
+Base.haskey(k::KDLNode, i) = kdl_key(getfield(k, :properties), i) !== nothing ||
+                             kdl_key(getfield(k, :body), i) !== nothing
 
 """
     push!(k::KDLNode, v)

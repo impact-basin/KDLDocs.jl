@@ -13,8 +13,8 @@ end
 
 @testset "Round-trip regressions" begin
     # byte-slicing: the last character of a quoted string is multibyte
-    @test arguments(parse_doc("node \"é\"")[:node]) == ["é"]
-    @test arguments(parse_doc("node \"日本語\"")[:node]) == ["日本語"]
+    @test arguments(parse_doc("node \"é\"").node) == ["é"]
+    @test arguments(parse_doc("node \"日本語\"").node) == ["日本語"]
     # identifiers that Julia's repr cannot round-trip
     for s in ["node +.", "\"\" arg", "node --", "node ?15"]
         @test structeq(parse_doc(s), parse_doc(sprint(show, parse_doc(s))))
