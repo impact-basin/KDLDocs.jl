@@ -5,8 +5,8 @@
 [KDL](https://kdl.dev) (KDL Document Language) is a node-oriented document
 language similar to XML and JSON. This package implements the [KDL 2.0
 specification](https://github.com/kdl-org/kdl/blob/main/SPEC.md), using the
-[PikaMacros](https://github.com/PikaTools/PikaMacros.jl) /
-[PikaParser](https://github.com/PikaTools/PikaParser.jl) parser toolkit.
+[PikaMacros](https://github.com/impact-basin/PikaMacros.jl) /
+[PikaParser](https://github.com/LCSB-BioCore/PikaParser.jl) parser toolkit.
 
 ## Quick start
 

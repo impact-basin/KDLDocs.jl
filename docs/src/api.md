@@ -1,5 +1,11 @@
 # API Reference
 
+## Module `KDLDocs`
+```@docs
+KDLDocs
+```
+
+
 ## Nodes
 
 ```@docs

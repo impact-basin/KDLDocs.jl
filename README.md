@@ -1,8 +1,8 @@
 # KDLDocs.jl
 
 A parser for the [KDL Document Language](https://kdl.dev), using
-[PikaMacros](https://github.com/PikaTools/PikaMacros.jl) and
-[PikaParser](https://github.com/PikaTools/PikaParser.jl).
+[PikaMacros](https://github.com/impact-basin/PikaMacros.jl) and
+[PikaParser](https://github.com/LCSB-BioCore/PikaParser.jl).
 
 This repo is verified against the test cases in [kdl-test](https://github.com/kdl-org/kdl-test) under CI.
 

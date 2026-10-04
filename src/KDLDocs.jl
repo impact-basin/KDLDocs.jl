@@ -5,14 +5,12 @@
 # A parser for the KDL document language.   ▄▄█   
 # ================================================
                                                   
-module KDLDocs
-
 """
     KDLDocs
 
 A parser for the [KDL document language](https://kdl.dev).
 Parse with [`kdl`](@ref) (or the [`@kdl_str`](@ref) macro),
-then navigate the result with `KDLNode`.
+then navigate the result with `KDLNode`:
 
 ```julia
 using KDLDocs
@@ -22,6 +20,8 @@ doc[:node].example          # true
 arguments(doc[:node, :foo]) # [1, 2, 3]
 ```
 """
+module KDLDocs
+
 
 export KDLNode, KDLParseError, kdl, @kdl_str, arguments, properties, children
 
