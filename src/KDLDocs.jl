@@ -15,12 +15,7 @@ then navigate the result with `KDLNode`:
 ```julia
 using KDLDocs
 
-doc = kdl"""
-node example=#true {
-    foo 1 2 3
-    bar 4 5 6
-}
-"""
+doc = kdl"node example=#true { foo 1 2 3; bar 4 5 6; }"
 doc.node                 # the child node `node`
 doc.node[:example]       # true
 doc.node.foo[1]          # 1
