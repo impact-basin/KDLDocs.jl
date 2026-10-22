@@ -21,14 +21,34 @@ node example=#true {
 """
 
 doc.node                 # the child node `node`
+nameof(doc.node)         # :node
 doc.node[:example]       # true
 doc.node.foo[1]          # 1
 arguments(doc.node.foo)  # [1, 2, 3]
 ```
 
-A KDL node has arguments (positional values), properties (`key=value` pairs),
-and children (nested nodes). Children read as fields, properties and arguments
-by index, and `show` serialises any node back to KDL.
+KDL nodes have names, arguments (positional values), properties
+(`key=value` pairs), and children (nested nodes). Children are
+accessed by fields, while properties and arguments are accessed
+by indexing.
+
+`show()` serialises KDL nodes back to the original KDL.
+
+## Queries
+
+There is a draft specification of a query language ("KQL") in the KDL
+standards repo. A minor variant of this query language has been
+implemented here via metaprogramming to make querying KDL docs easy.
+Variance from the original specification is required because certain
+symbols used in the query language (e.g. `$=`) result in illegal Julia
+parses.
+
+The `@query` macro selects nodes with the expression.
+(`@query doc package >> name`).
+
+You can also write the query as a string (e.g. via `query"..."`);
+the resulting object is callable and will run the query
+on the argumented KDL document.
 
 ## Licence
 

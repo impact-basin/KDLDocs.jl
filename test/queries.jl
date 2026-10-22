@@ -60,6 +60,8 @@ const ROOTS = [:m3, :ovirs, :lola, :naif, :lamp, :diviner]
     @testset "properties" begin
         @test names(@query PDS lola > bundle[url]) == [:bundle]
         @test names(@query PDS lola > bundle[prop(url)]) == [:bundle]
+        @test names(@query PDS lola > bundle[links][url]) == [:bundle]
+        @test names(query(PDS, "lola > bundle[links][url]")) == [:bundle]
         @test names(@query PDS lamp > noextras[regex]) == [:noextras]
 
         @test names(@query PDS lola > bundle[links = relative]) == [:bundle]
@@ -142,6 +144,37 @@ const ROOTS = [:m3, :ovirs, :lola, :naif, :lamp, :diviner]
         @test names(only(one)) == [:m3]
     end
 
+    @testset "show and round-trip" begin
+        for s in ["m3 > []", "a || b >> c", "x[val(2) != 1]",
+                  "a[url ^= \"https\"]", "[]", "top() > [name() %= \"ies\"]",
+                  "a[platform = windows]", "\"my node\" > []"]
+            q = KDLQuery(s)
+            printed = sprint(show, q)
+            @test sprint(show, KDLQuery(printed)) == printed
+        end
+        @test sprint(show, KDLQuery("a[url]")) == "a[url]"
+        @test sprint(show, @query lola > bundle[url ^= "https"]) ==
+              "lola > bundle[url ^= \"https\"]"
+    end
+
+    @testset "front ends agree" begin
+        for (ex, s) in [
+            (:(top() > []), "top() > []"),
+            (:(m3 > l2 || m3 > l1), "m3 > l2 || m3 > l1"),
+            (:(lola >> bundle > []), "lola >> bundle > []"),
+            (:(m3 > default[val() = l1]), "m3 > default[val() = l1]"),
+            (:(lola > bundle[url ^= "https"]), "lola > bundle[url ^= \"https\"]"),
+            (:(diviner > gcp ++ []), "diviner > gcp ++ []"),
+        ]
+            @test @eval(@query PDS $ex) == query(PDS, s)
+        end
+
+        # The string dialect can spell KDL names that Julia syntax cannot.
+        d = kdl("my-node { child-node }")
+        @test names(query(d, "my-node > child-node")) == [Symbol("child-node")]
+        @test names(@query d var"my-node" > var"child-node") == [Symbol("child-node")]
+    end
+
     @testset "compile-time construction" begin
         # A query string literal is parsed during macro expansion and embedded
         # as a callable KDLQuery, so loops and repeated uses do not reparse.
@@ -184,6 +217,8 @@ const ROOTS = [:m3, :ovirs, :lola, :naif, :lamp, :diviner]
         @test names(query(PDS, "top() > []")) == ROOTS
         @test names(query(PDS, "lola >> bundle > ldec[regex %= \"*ldec*\"]")) ==
               [:ldec]
+        @test names(query(PDS, "top() > lola >> bundle > ldam + ldec")) == [:ldec]
+        @test names(query(PDS, "top() > lola >> bundle")) == [:bundle, :bundle]
         @test names(query(PDS, "[name() ^= \"ld\"]")) ==
               [:ldam, :ldec, :ldem, :ldrm]
     end
@@ -215,6 +250,9 @@ const ROOTS = [:m3, :ovirs, :lola, :naif, :lamp, :diviner]
         @test names(query(dnums, "n[val() = Inf]")) == [:n]
         @test names(query(dnums, "n[val(2) = -Inf]")) == [:n]
         @test names(query(dnums, "n[val(3) = NaN]")) == [:n]
+
+        escaped = kdl("n \"a\\nb\"")
+        @test names(query(escaped, "n[val() = \"a\\nb\"]")) == [:n]
     end
 
     @testset "results" begin
@@ -238,6 +276,14 @@ const ROOTS = [:m3, :ovirs, :lola, :naif, :lamp, :diviner]
         @test_throws KDLQueryError KDLQuery("[tag() = hi]")
         @test_throws KDLQueryError KDLQuery("[val() = type(foo)]")
         @test_throws KDLQueryError KDLQuery("[val() = (foo)]")
+        @test_throws KDLQueryError KDLQuery("a[val(0)]")
+        @test_throws KDLQueryError KDLQuery("[values() = 1]")
+        @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS a[values() = 1]))
+        @test_throws KDLQueryError KDLQuery("top() + a")
+        @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS a[val(0)]))
+        @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS top() + a))
+        @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS a b))
+        @test_throws KDLQueryError macroexpand(@__MODULE__, :(query"m3 >"))
 
         @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS a > top()))
         @test_throws KDLQueryError macroexpand(@__MODULE__, :(@query PDS type(m3)))

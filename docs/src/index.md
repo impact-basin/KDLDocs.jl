@@ -1,8 +1,6 @@
 # KDLDocs.jl
 
-*KDL Documents in Julia.*
-
-[KDL](https://kdl.dev) (KDL Document Language) is a node-oriented document
+[KDL](https://kdl.dev) is a node-oriented document
 language similar to XML and JSON. This package implements the [KDL 2.0
 specification](https://github.com/kdl-org/kdl/blob/main/SPEC.md), using the
 [PikaMacros](https://github.com/impact-basin/PikaMacros.jl) /
@@ -31,29 +29,62 @@ julia> arguments(doc.node.foo)
  3
 ```
 
-Each KDL node has three kinds of field: arguments, properties, and children.
-Arguments and properties sit before the optional block; arguments are
-position-dependent values (`1 2 3` in `foo 1 2 3`), while properties are
-position-independent assigned values (`example=#true`). Children are full
-nodes, and they nest inside the braces.
+Each KDL node can have arguments ("args"), properties ("props"), or children.  Arguments are position-dependent values, e.g. `1 2 3` in `foo 1 2 3` for the node `foo`. Properties are position-independent assigned values, e.g.  (`foo example=#true`).
 
-`kdl()` parses a document into a [`KDLNode`](@ref). Children read as fields
-(`doc.node`), properties and arguments by index (`doc.node[:example]`,
-`doc.node.foo[1]`), and an absent property is `missing`. `Base.show`
-serialises a node back to KDL, so the printed form round-trips:
+Children are written in curly braces and can be arbitrarily nested:
+in their own right, e.g.
+
+```kdl
+foo 1 2 3 {
+    bar "baz" extra symbol arguments
+    baz 7 8 9 {
+        qux "topsecret" different=#true
+    }
+}
+```
+
+KQL allows for querying documents via [`@query`](@ref):
 
 ```jldoctest; setup = :(using KDLDocs)
 julia> doc = kdl"""
-       node example=#true {
-           foo 1 2 3
+       package {
+           name my_pkg
        }
        """;
 
-julia> kdl(sprint(show, doc)) isa KDLNode
-true
+julia> @query doc package
+1-element Vector{KDLNode}:
+ package {
+        name my_pkg 
+ }
+```
+
+A `begin ... end` block runs several queries and returns a tuple:
+
+```jldoctest; setup = :(using KDLDocs)
+julia> doc = kdl"""foo 1 2 3 {
+    bar "baz" extra symbol arguments
+    baz 7 8 9 {
+        qux "string" other fields
+    }
+}"""
+
+juila> bar, baz = @query doc begin
+    bar
+    baz    
+end
+
+julia> bar
+1-element Vector{KDLNode}:
+ bar "baz" extra symbol arguments 
+
+julia> baz
+1-element Vector{KDLNode}:
+ baz 7 8 9 {
+        qux "string" other fields 
+}
 ```
 
 ## Pages
 
-  - [Usage](@ref) -- parsing, navigation, mutation, serialisation, and errors.
   - [API Reference](@ref) -- the documented public interface.

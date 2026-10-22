@@ -1,6 +1,6 @@
 name = "KDLDocs"
 uuid = "401a1991-251b-4274-8504-ebcf13a74f85"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["henry eshbaugh <henry.eshbaugh@physics.ox.ac.uk>"]
 
 [deps]

@@ -21,6 +21,7 @@ nameof(doc.node)         # :node
 doc.node[:example]       # true
 doc.node.foo[1]          # 1
 arguments(doc.node.foo)  # [1, 2, 3]
+Tuple(nameof.(@query doc top() > []))  # (:node,)
 ```
 """
 module KDLDocs

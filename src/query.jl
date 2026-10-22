@@ -37,7 +37,7 @@ Base.showerror(io::IO, e::KDLQueryError) =
 # name(), values(), props(), or a bare property key (prop shorthand).
 struct Accessor
     kind :: Symbol   # :val, :prop, :name, :values, :props
-    arg  :: Any      # Int for :val, key for :prop, nothing otherwise
+    arg  :: Union{Nothing, Int, Symbol, String}
 end
 
 struct Test
@@ -49,8 +49,15 @@ end
 
 # A filter is an optional name plus zero or more bracket tests.
 struct Filter
-    name  :: Union{Nothing, Symbol, AbstractString}
+    name  :: Union{Nothing, Symbol, String}
     tests :: Tuple{Vararg{Test}}
+end
+
+# values()/props() are existence-only accessors.
+function make_test(accessor::Accessor, op::Symbol, value)
+    accessor.kind in (:values, :props) && op !== :exists &&
+        throw(KDLQueryError("`$(accessor.kind)()` can only be tested for existence"))
+    Test(accessor, op, value)
 end
 
 struct TopSelector end
@@ -71,18 +78,95 @@ end
 """
     KDLQuery
 
-A compiled, callable KDL query.  Call it on a document, `q(doc)`, or pass it
-to [`query`](@ref).  Build one from a string with `KDLQuery(str)` (parsed
-when called), with the compile-time literals `query"..."` and
-``query`...` ``, or from the expression dialect with the [`@query`](@ref)
-macro.  The macro and literal forms embed the object in the compiled code, so
-they are not reparsed on each use.
+Represents a compiled KDL query (c.f. a `Regex()` object.
+The query object is callable on KDL documents, e.g. `q(doc)`, and can
+be passed to [`query`](@ref).
+
+Queries can be constructed from
+* A string: `KDLQuery(str)`,
+* A string literal: `query"..."` or ``query`...` ``,
+* An expression in the Julia AST via [`@query`](@ref)
+The latter two avoid reparsing.
 """
 struct KDLQuery
     root :: Union{Chain, UnionSelector}
 end
 
 KDLQuery(s::AbstractString) = parse_query(s)
+
+# Canonical display: the printed form is itself valid query-string syntax.
+const TEST_OP_STRINGS = Dict(
+    :eq => "=",
+    :ne => "!=",
+    :gt => ">",
+    :ge => ">=",
+    :lt => "<",
+    :le => "<=",
+    :starts => "^=",
+    :ends => "%=",
+    :contains => "*=",
+)
+
+Base.show(io::IO, q::KDLQuery) = show_selector(io, q.root)
+
+function show_selector(io::IO, ch::Chain)
+    show_filter(io, ch.head)
+    for (op, f) in ch.steps
+        print(io, ' ', op, ' ')
+        show_filter(io, f)
+    end
+end
+
+function show_selector(io::IO, u::UnionSelector)
+    for (i, branch) in enumerate(u.branches)
+        i > 1 && print(io, " || ")
+        show_selector(io, branch)
+    end
+end
+
+show_filter(io::IO, ::TopSelector) = print(io, "top()")
+
+function show_filter(io::IO, f::Filter)
+    if f.name === nothing
+        isempty(f.tests) && print(io, "[]")
+    else
+        print(io, kdl_ident_repr(f.name))
+    end
+    for t in f.tests
+        print(io, '[')
+        show_test(io, t)
+        print(io, ']')
+    end
+end
+
+function show_accessor(io::IO, a::Accessor)
+    if a.kind === :val
+        a.arg == 1 ? print(io, "val()") : print(io, "val(", a.arg, ")")
+    elseif a.kind === :prop
+        # a bare (or quoted) key inside brackets is already prop shorthand
+        print(io, kdl_ident_repr(a.arg))
+    elseif a.kind === :name
+        print(io, "name()")
+    elseif a.kind === :values
+        print(io, "values()")
+    elseif a.kind === :props
+        print(io, "props()")
+    end
+end
+
+function show_test(io::IO, t::Test)
+    show_accessor(io, t.accessor)
+    t.op === :exists && return
+    print(io, ' ', TEST_OP_STRINGS[t.op], ' ')
+    show_value(io, t.value)
+end
+
+show_value(io::IO, ::Nothing) = print(io, "nothing")
+show_value(io::IO, v::Bool) = print(io, v)
+show_value(io::IO, v::Symbol) = print(io, kdl_ident_repr(v))
+show_value(io::IO, v::AbstractString) = print(io, kdl_format_string(v))
+show_value(io::IO, v::Number) = print(io, v)
+show_value(io::IO, v) = print(io, repr(v))
 
 #
 # Query-string parser, written with PikaMacros so that the query grammar and
@@ -103,9 +187,7 @@ is_query_ident_char(c::Char) =
 """
     kql_ident_scan(v)
 
-PikaParser `scan` predicate for query identifiers: identifier characters up
-to the next query metacharacter.  Returns the byte index of the last matched
-character, or 0 when the view does not start an identifier.
+PikaParser `scan` predicate for query identifiers up to next query metacharacter. Returns the byte index of the last matched character, or 0 when match fails.
 """
 function kql_ident_scan(v)
     isempty(v) && return 0
@@ -120,7 +202,7 @@ function kql_ident_scan(v)
     last
 end
 
-# PikaParser scan for a double-quoted string with backslash escapes.  Returns
+# scanner for a double-quoted string with backslash escapes.  Returns
 # the byte index of the closing quote.
 function kql_string_scan(v)
     i = firstindex(v)
@@ -237,6 +319,11 @@ function unsupported_type!(pos)
                         "the `type(...)` matcher is unavailable", pos))
 end
 
+const QUERY_STRING_OPS = Dict(
+    "!=" => :ne, ">=" => :ge, "<=" => :le, "^=" => :starts, "%=" => :ends,
+    "*=" => :contains, "==" => :eq, ">" => :gt, "<" => :lt, "=" => :eq,
+)
+
 query_syntax = @syntax :query begin
 
     :q_ws => r"\s+"
@@ -257,7 +344,7 @@ query_syntax = @syntax :query begin
     :q_top_filter => seq(tokens("top"), many(:q_ws), token('('),
                          many(:q_ws), token(')'))
 
-    :q_type_filter => seq(:q_type, many(:q_matcher))
+    :q_type_filter => seq(:q_type_call, many(:q_matcher))
 
     :q_name_filter => seq(:q_name, many(:q_matcher))
 
@@ -265,8 +352,8 @@ query_syntax = @syntax :query begin
 
     :q_name => first(:q_ident, :q_string)
 
-    :q_type => seq(tokens("type"), many(:q_ws), token('('), many(:q_ws),
-                   first(:q_name, epsilon), many(:q_ws), token(')'))
+    :q_type_call => seq(tokens("type"), many(:q_ws), token('('), many(:q_ws),
+                        first(:q_name, epsilon), many(:q_ws), token(')'))
 
     :q_matcher => first(:q_matcher_full, :q_matcher_empty)
 
@@ -318,12 +405,9 @@ query_syntax = @syntax :query begin
     :q_value => first(:q_type_value, :q_number, :q_string, :q_keyword,
                       :q_ident)
 
-    :q_type_value => seq(tokens("type"), many(:q_ws), token('('),
-                         many(:q_ws), first(:q_name, epsilon),
-                         many(:q_ws), token(')'))
+    :q_type_value => seq(:q_type_call)
 
-    :q_keyword => first(tokens("true"), tokens("false"), tokens("nothing"),
-                        tokens("Inf"), tokens("NaN"))
+    :q_keyword => first(tokens("true"), tokens("false"), tokens("nothing"))
 
     :q_number => r"[+-]?(0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|([0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9_]+)?)|Inf|NaN)"
 
@@ -347,14 +431,17 @@ query_semantics = @semantics :query m v ruletags=false begin
     :q_union_tail => v[4]
 
     :q_chain => begin
+        head = v[1]
         steps = Tuple{Symbol, Filter}[]
         for step in kql_list(v[2])
             op, f = step
             f isa TopSelector &&
                 throw(KDLQueryError("top() may only appear first in a selector", m.first))
+            head isa TopSelector && isempty(steps) && op in (:+, :++) &&
+                throw(KDLQueryError("top() has no siblings; use > or >> after top()", m.first))
             push!(steps, (op, f))
         end
-        Chain(v[1], Tuple(steps))
+        Chain(head, Tuple(steps))
     end
 
     :q_step => (v[2], v[4])
@@ -373,7 +460,7 @@ query_semantics = @semantics :query m v ruletags=false begin
 
     :q_name => v[1]
 
-    :q_type => nothing
+    :q_type_call => nothing
 
     :q_matcher => v[1]
 
@@ -386,26 +473,22 @@ query_semantics = @semantics :query m v ruletags=false begin
 
     :q_matcher_empty => nothing
 
-    :q_comparison => Test(v[1], v[3], v[5])
+    :q_comparison => make_test(v[1], v[3], v[5])
 
     :q_cmp_op => begin
-        m.view == "!=" ? :ne :
-        m.view == ">=" ? :ge :
-        m.view == "<=" ? :le :
-        m.view == "^=" ? :starts :
-        m.view == "%=" ? :ends :
-        m.view == "*=" ? :contains :
-        m.view == "==" ? :eq :
-        m.view == "\$=" ? throw(KDLQueryError("`\$=` is not available; use `%=` for ends-with", m.first)) :
-        m.view == ">" ? :gt :
-        m.view == "<" ? :lt : :eq
+        m.view == "\$=" &&
+            throw(KDLQueryError("`\$=` is not available; use `%=` for ends-with", m.first))
+        QUERY_STRING_OPS[m.view]
     end
 
     :q_accessor => v[1]
 
     :q_val_empty => Accessor(:val, 1)
 
-    :q_val_index => Accessor(:val, v[5])
+    :q_val_index => begin
+        v[5] >= 1 || throw(KDLQueryError("val() takes a positive integer index", m.first))
+        Accessor(:val, v[5])
+    end
 
     :q_prop_acc => Accessor(:prop, v[5])
 
@@ -427,10 +510,7 @@ query_semantics = @semantics :query m v ruletags=false begin
 
     :q_keyword => begin
         m.view == "true" ? true :
-        m.view == "false" ? false :
-        m.view == "nothing" ? nothing :
-        m.view == "Inf" ? Inf :
-        m.view == "NaN" ? NaN : nothing
+        m.view == "false" ? false : nothing
     end
 
     :q_number => kql_number(m.view, m.first)
@@ -464,6 +544,14 @@ end
 
 #
 # Expression dialect (`@query`): lower Julia syntax to the same selector AST.
+#
+# This is deliberately a lowering pass, not a stringify-then-parse step.
+# `string(::Expr)` leaks the `LineNumberNode` blocks that Julia puts inside
+# `a[val() = 1]`, prints a Symbol like `Symbol("my node")` without the quoting
+# that distinguishes it from a String, and erases literal types (`Int8(1)` ->
+# `1`, `Float32` -> `1.0f0`), which would break type-strict matchers.  Walking
+# the AST also lets the macro name the offending sub-expression instead of
+# reporting an offset into a synthetic string.
 #
 
 function unwrap_block(ex::Expr)
@@ -541,6 +629,9 @@ end
 function compile_chain(ex)
     operands, ops = chain_parts(ex)
     head = compile_filter(operands[1])
+    if head isa TopSelector && !isempty(ops) && ops[1] in (:+, :++)
+        throw(KDLQueryError("top() has no siblings; use > or >> after top()"))
+    end
     steps = Tuple{Symbol, Filter}[]
     for (k, op) in enumerate(ops)
         f = compile_filter(operands[k + 1])
@@ -615,22 +706,18 @@ const HEAD_TEST_OPS = Dict(Symbol("^=") => :starts, Symbol("%=") => :ends,
 function compile_test(ex)
     ex = unwrap_block(ex)
     if ex isa Expr && ex.head === :kw && length(ex.args) == 2
-        return Test(compile_accessor(ex.args[1]), :eq, compile_value(ex.args[2]))
+        return make_test(compile_accessor(ex.args[1]), :eq, compile_value(ex.args[2]))
     elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2
-        return Test(compile_accessor(ex.args[1]), :eq, compile_value(ex.args[2]))
+        return make_test(compile_accessor(ex.args[1]), :eq, compile_value(ex.args[2]))
     elseif ex isa Expr && haskey(HEAD_TEST_OPS, ex.head) && length(ex.args) == 2
-        acc = compile_accessor(ex.args[1])
-        acc.kind in (:values, :props) &&
-            throw(KDLQueryError("`$(acc.kind)()` can only be tested for existence"))
-        return Test(acc, HEAD_TEST_OPS[ex.head], compile_value(ex.args[2]))
+        return make_test(compile_accessor(ex.args[1]), HEAD_TEST_OPS[ex.head],
+                         compile_value(ex.args[2]))
     elseif ex isa Expr && ex.head === :call && length(ex.args) == 3 &&
            ex.args[1] isa Symbol && haskey(CALL_TEST_OPS, ex.args[1])
-        acc = compile_accessor(ex.args[2])
-        acc.kind in (:values, :props) &&
-            throw(KDLQueryError("`$(acc.kind)()` can only be tested for existence"))
-        return Test(acc, CALL_TEST_OPS[ex.args[1]], compile_value(ex.args[3]))
+        return make_test(compile_accessor(ex.args[2]), CALL_TEST_OPS[ex.args[1]],
+                         compile_value(ex.args[3]))
     end
-    return Test(compile_accessor(ex), :exists, nothing)
+    return make_test(compile_accessor(ex), :exists, nothing)
 end
 
 function compile_accessor(ex)
@@ -646,9 +733,11 @@ function compile_accessor(ex)
             if isempty(args)
                 return Accessor(:val, 1)
             elseif length(args) == 1 && args[1] isa Integer
-                return Accessor(:val, Int(args[1]))
+                i = Int(args[1])
+                i >= 1 || throw(KDLQueryError("val() takes a positive integer index"))
+                return Accessor(:val, i)
             end
-            throw(KDLQueryError("val() takes an integer index"))
+            throw(KDLQueryError("val() takes a positive integer index"))
         elseif f === :prop
             if length(args) == 1 && (args[1] isa Symbol || args[1] isa AbstractString)
                 key = args[1] isa AbstractString ? String(args[1]) : args[1]
@@ -756,8 +845,10 @@ end
 Differences from KQL: `%=` is ends-with (KQL's `\$=` cannot be written in
 Julia), `type(...)` replaces `(tag)`/`tag(...)`, and values use Julia
 literals (`true`, `false`, `nothing`, `Inf`, `NaN`, numbers, `foo` for a
-Symbol, `"foo"` for a String).  Type-annotation matchers are rejected until
-`KDLNode` retains annotations.
+Symbol, `"foo"` for a String).  A String in query position is a quoted node
+name or value; use `query"..."` or `query(doc, str)` when the selector itself
+is a string.  Type-annotation matchers are rejected until `KDLNode` retains
+annotations.
 """
 macro query(args...)
     return query_macro_expr(args...)
@@ -855,17 +946,7 @@ function all_matches(doc::KDLNode)
     out
 end
 
-function descendants(m::QueryMatch)
-    out = QueryMatch[]
-    function walk(n::KDLNode)
-        for c in children(n)
-            push!(out, QueryMatch(n, c))
-            walk(c)
-        end
-    end
-    walk(m.node)
-    out
-end
+descendants(m::QueryMatch) = all_matches(m.node)
 
 filter_matches(ms, f::Filter) = QueryMatch[m for m in ms if match_filter(m, f)]
 
@@ -889,6 +970,8 @@ function accessor_value(node::KDLNode, a::Accessor)
     elseif a.kind === :name
         n = nameof(node)
         n === nothing ? missing : string(n)
+    else
+        missing
     end
 end
 
