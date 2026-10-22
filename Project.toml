@@ -5,6 +5,7 @@ authors = ["henry eshbaugh <henry.eshbaugh@physics.ox.ac.uk>"]
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Match = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
 PikaMacros = "ca8db28f-0b4e-496b-992b-382a66077f5b"
 PikaParser = "3bbf5609-3e7b-44cd-8549-7c69f321e792"
@@ -14,6 +15,7 @@ StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 [compat]
 julia = "1.11"
 DataStructures = "0.19.3"
+MacroTools = "0.5"
 Match = "2.4.1"
 PikaMacros = "0.2.1"
 PikaParser = "0.6.1"

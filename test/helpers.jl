@@ -64,9 +64,9 @@ Deep structural equality for parsed KDL data.  Handles `KDLNode`s,
 pairs, and scalar values compared with `isequal` (so `NaN` and `missing`
 compare equal to themselves).
 """
-structeq(a::KDLNode, b::KDLNode) = structeq(arguments(a), arguments(b)) &&
+structeq(a::KDLNode, b::KDLNode) = isequal(nameof(a), nameof(b)) &&
+                                   structeq(arguments(a), arguments(b)) &&
                                    structeq(properties(a), properties(b)) &&
-                                   structeq(getfield(a, :body), getfield(b, :body)) &&
                                    structeq(children(a), children(b))
 structeq(a::Missing, b::Missing) = true
 structeq(a::Missing, b) = isempty(normdict(b))
@@ -120,4 +120,4 @@ end
 
 The names of the child nodes of `k`, in document order.
 """
-node_names(k::KDLNode) = [name for (name, _) in children(k)]
+node_names(k::KDLNode) = nameof.(children(k))

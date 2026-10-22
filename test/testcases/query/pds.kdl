@@ -1,0 +1,74 @@
+m3 {
+    l1 url="https://planetarydata.jpl.nasa.gov/img/data/m3/CH1M3_0003/"
+    l2 url="https://planetarydata.jpl.nasa.gov/img/data/m3/CH1M3_0004/"    
+    default l1 l2
+}
+
+ovirs url="https://sbnarchive.psi.edu/pds4/orex/orex.ovirs.v11.zip"
+
+lola links=relative {
+
+    bundle links=relative url="https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/" {
+        ldam regex="*ldam*"
+        ldec regex="*ldec*"
+        ldem regex="*ldem*"
+        ldrm regex="*ldrm*"
+    }
+
+    illumination url="https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/"
+
+    fractal      url="https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/fractal/"
+
+    resolution filter {
+        res_4    regex="*4.*"  // FIXME!
+        res_16   regex="*16.*"
+        res_128  regex="*128.*"
+        res_256  regex="*256.*"
+        res_512  regex="*512.*"
+        res_1024 regex="*1024.*"
+    }
+
+    projection filter {
+        cylindrical regex = ""
+        polar       regex = ""
+    }
+
+    format filter {
+        float_img regex = "*/float_img/*"
+        img       regex = "*/img/*"
+        jp2       regex = "*/jp2/*"
+        pa        regex = "*/pa/*"
+    }
+
+    default {
+        bundle ldam ldec ldem ldrm
+        filter {
+            resolution r4 r16
+            projection cylindrical
+            format jp2
+        }
+    }
+}
+
+naif {
+    kernels url="https://naif.jpl.nasa.gov/pub/naif/generic_kernels/"
+    default kernels
+}
+
+lamp {
+    gdr url="https://planetarydata.jpl.nasa.gov/img/data/lro/lamp/gdr/"
+    rdr url="https://planetarydata.jpl.nasa.gov/img/data/lro/lamp/rdr/"
+    noextras filter regex="^((?!EXTRA).)*$"
+    default rdr noextras
+}
+
+diviner {
+    gcp url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_gcp/"
+    epf url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived2/data_derived_epf/"
+    prp url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/"
+    pcp url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_pcp/"
+    rcp url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_rcp/"
+    l2 url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_gdr_l2/"
+    l3 url="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_gdr_l3/"
+    default gcp
+}
