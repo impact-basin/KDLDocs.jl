@@ -19,11 +19,18 @@ node b=2; node c=3
     )
     for doc in docs
         reparsed = kdl(sprint(show, doc))
-        for (_, node) in children(reparsed)
+        for node in children(reparsed)
             arguments(node)
             properties(node)
             children(node)
             propertynames(node)
         end
     end
+    # Query path: the expression dialect compiles at macro-expansion time, the
+    # string dialect parses at runtime.
+    sample = kdl"node a=1 { child b=2 }"
+    (@query top() > [])(sample)
+    (@query node > child[name() = child])(sample)
+    (query"node > child")(sample)
+    query(sample, "node >> child[val() = 1]")
 end

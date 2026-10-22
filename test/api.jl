@@ -19,6 +19,34 @@
     @test n[:x] == 1
 end
 
+@testset "API: node names" begin
+    doc = parse_doc("package { name my_pkg; name other; child }")
+    # a document root is unnamed
+    @test nameof(doc) === nothing
+    @test nameof(doc.package) === :package
+    # names are intrinsic, so they survive retrieval and iteration
+    @test nameof(doc.package.name) === :name
+    @test node_names(doc.package) == [:name, :name, :child]
+    @test children(doc.package) isa Vector{KDLNode}
+    @test children(doc.package)[1] isa KDLNode
+    # duplicate names: unique for property completion, duplicated in children
+    @test propertynames(doc.package) == (:name, :child)
+    # quoted and raw names keep their spelling
+    @test nameof(only(children(parse_doc("\"my node\" 1")))) == "my node"
+    @test nameof(only(children(parse_doc("#\"raw name\"# 1")))) == "raw name"
+    # the field is reached with nameof, so `.name` still means a child named name
+    @test doc.package.name isa KDLNode
+    @test nameof(KDLNode(:x)) === :x
+    # a subtree serialises with its own name and round-trips
+    m = parse_doc("foo { bar }").foo
+    @test startswith(sprint(show, m), "foo ")
+    @test nameof(only(children(parse_doc(sprint(show, m))))) === :foo
+    # empty! keeps the name
+    n = parse_doc("node { child }").node
+    empty!(n)
+    @test nameof(n) === :node
+end
+
 # the README example document
 const README_DOC = "node example=#true {\n    foo 1 2 3\n    bar 4 5 6 {\n        alpha\n        beta\n        gamma\n    }\n}"
 
@@ -137,6 +165,10 @@ end
         m = merge!(parse_doc("foo 1"), parse_doc("bar 2"))
         haskey(m, :foo) && haskey(m, :bar)
     end
+    # the right operand's name wins, as with Base.merge on dictionaries
+    @test nameof(merge(KDLNode(:a), KDLNode(:b))) === :b
+    @test nameof(merge(KDLNode(:a), KDLNode())) === nothing
+    @test nameof(merge!(KDLNode(:a), KDLNode(:b))) === :b
 end
 
 @testset "API: show round-trip" begin

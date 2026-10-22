@@ -181,8 +181,8 @@ function node_matches(k::KDLNode, ref)
     mychildren = children(k)
     refchildren = ref["children"]
     length(mychildren) == length(refchildren) || return false
-    for ((cname, c), r) in zip(mychildren, refchildren)
-        (name_matches(cname, r["name"]) && node_matches(c, r)) || return false
+    for (c, r) in zip(mychildren, refchildren)
+        (name_matches(nameof(c), r["name"]) && node_matches(c, r)) || return false
     end
     return true
 end
@@ -198,8 +198,8 @@ function doc_matches(k::KDLNode, ref)
     ref isa AbstractVector || return false
     mynodes = children(k)
     length(mynodes) == length(ref) || return false
-    for ((name, child), r) in zip(mynodes, ref)
-        (name_matches(name, r["name"]) && node_matches(child, r)) || return false
+    for (child, r) in zip(mynodes, ref)
+        (name_matches(nameof(child), r["name"]) && node_matches(child, r)) || return false
     end
     return true
 end

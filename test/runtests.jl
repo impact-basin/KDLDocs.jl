@@ -22,4 +22,5 @@ include("helpers.jl")
     include("spec_examples.jl")
     include("testcases.jl")
     include("roundtrip.jl")
+    include("queries.jl")
 end

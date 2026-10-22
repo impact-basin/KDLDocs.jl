@@ -17,15 +17,18 @@ using KDLDocs
 
 doc = kdl"node example=#true { foo 1 2 3; bar 4 5 6; }"
 doc.node                 # the child node `node`
+nameof(doc.node)         # :node
 doc.node[:example]       # true
 doc.node.foo[1]          # 1
 arguments(doc.node.foo)  # [1, 2, 3]
+Tuple(nameof.(@query doc top() > []))  # (:node,)
 ```
 """
 module KDLDocs
 
 
 export KDLNode, KDLParseError, kdl, @kdl_str, arguments, properties, children
+export @query, KDLQuery, KDLQueryError, query, @query_str, @query_cmd
 
 using Match
 using DataStructures
@@ -38,6 +41,7 @@ include("types.jl")
 include("io.jl")
 include("syntax.jl")
 include("semantics.jl")
+include("query.jl")
 include("precompile.jl")
 
 end # module KDLDocs

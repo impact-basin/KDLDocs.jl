@@ -30,21 +30,22 @@ function node_args(k::KDLNode)
     isempty(parts) ? "" : prod(parts)
 end
 
-# Serialise the children of a node in document order.
-function node_body(k::KDLNode, top = false)
+# Serialise a node's children as a `{ ... }` block.
+function node_body(k::KDLNode)
     kids = children(k)
     isempty(kids) && return styled""
-    body = join([node_body(name, child) for (name, child) in kids], styled"\n")
-    top && return body
-    return "{" * indent("\n" * body) * "\n}\n"
+    return "{" * indent("\n" * join([kdl_show(child) for child in kids], styled"\n")) * "\n}\n"
 end
 
-node_body(k, v) = kdl_nodename(k) * " " * kdl_repr(v) * " "
-
-function kdl_show(k::KDLNode, top=false)
-    a = node_args(k)
-    b = node_body(k, top)
-    return a * b
+# A node prints its own name.  Only a document root (nameof(k) === nothing)
+# prints without one, and its children print without braces.
+function kdl_show(k::KDLNode)
+    kids = children(k)
+    if nameof(k) === nothing
+        isempty(kids) && return styled""
+        return join([kdl_show(child) for child in kids], styled"\n")
+    end
+    return kdl_nodename(nameof(k)) * " " * node_args(k) * node_body(k)
 end
 
 """
@@ -52,14 +53,14 @@ end
 
 Serialise the node `k` back to KDL.
 """
-Base.show(io::IO, k::KDLNode) = print(io, kdl_show(k, true))
+Base.show(io::IO, k::KDLNode) = print(io, kdl_show(k))
 
 """
     write(io::IO, k::KDLNode)
 
 Write the KDL serialisation of `k` to `io`.
 """
-Base.write(io::IO, k::KDLNode) = write(io, kdl_show(k, true))
+Base.write(io::IO, k::KDLNode) = write(io, kdl_show(k))
 
 """
     kdl_read(path)
@@ -268,7 +269,7 @@ end
 kdl_ident_repr(s::Symbol)         = is_bare_ident(string(s)) ? string(s) : kdl_format_string(string(s))
 kdl_ident_repr(s::AbstractString) = kdl_format_string(s)
 
-kdl_repr(k::KDLNode) = kdl_show(k, false)
+kdl_repr(k::KDLNode) = kdl_show(k)
 kdl_repr(b::Bool)    = styled"{bright_blue:#$(repr(b))}"
 kdl_repr(f::Number)  = styled"{bright_red:$(kdl_format_number(f))}"
 kdl_repr(s::String)  = styled"{bright_red:$(kdl_format_string(s))}"

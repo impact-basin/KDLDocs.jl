@@ -360,15 +360,14 @@ function build_entries(entries)
 end
 
 """
-    make_node(arguments, properties, body)
+    make_node(name, arguments, properties, body)
 
-Construct a `KDLNode` from parsed arguments and properties, and a
-`(children_dict, children_list)` body tuple (or `missing` when the node has
-no children block).
+Construct a `KDLNode` named `name` from parsed arguments and properties, and
+a children list (or `missing` when the node has no children block).
 """
-function make_node(arguments, properties, body)
-    bd, bl = ismissing(body) ? (OrderedDict{Any,KDLNode}(), Pair{Any,KDLNode}[]) : body
-    KDLNode(arguments, properties, bd, bl)
+function make_node(name, arguments, properties, body)
+    kids = ismissing(body) ? KDLNode[] : body
+    KDLNode(name, arguments, properties, kids)
 end
 
 """
@@ -383,9 +382,7 @@ function build_document(nodes)
     for node in as_list(nodes)
         node === nothing && continue
         name, args, props, body = node
-        child = make_node(args, props, body)
-        getfield(ret, :body)[name] = child
-        push!(getfield(ret, :children), name => child)
+        push!(getfield(ret, :children), make_node(name, args, props, body))
     end
     ret
 end
@@ -432,22 +429,17 @@ semantics = @semantics :document m v ruletags=false begin
     :slashdash_sep       => :slashdash
 
     :node_children       => begin
-        ret  = OrderedDict{Any,KDLNode}()
-        kids = Pair{Any,KDLNode}[]
+        kids = KDLNode[]
         for node in as_list(v[2])
             node === nothing && continue
             name, args, props, body = node
-            child = make_node(args, props, body)
-            ret[name] = child
-            push!(kids, name => child)
+            push!(kids, make_node(name, args, props, body))
         end
         if v[3] isa AbstractVector && length(v[3]) == 1
             name, args, props, body = v[3][1]
-            child = make_node(args, props, body)
-            ret[name] = child
-            push!(kids, name => child)
+            push!(kids, make_node(name, args, props, body))
         end
-        (ret, kids)
+        kids
     end
 
     :children_part       => (length(v) == 3 && v[2] isa AbstractVector &&

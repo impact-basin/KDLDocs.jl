@@ -17,7 +17,7 @@ end
 @testset "3.2 Node" begin
     # a bare node
     @test parse_doc("foo").foo isa KDLNode
-    @test structeq(parse_doc("foo").foo, KDLNode())
+    @test structeq(parse_doc("foo").foo, KDLNode(:foo))
     # multiple nodes
     @test node_names(parse_doc("foo\nbar")) == [:foo, :bar]
     @test node_names(parse_doc("foo; bar")) == [:foo, :bar]
@@ -32,7 +32,7 @@ end
     @test argkeys(parse_doc("#\"my node\"# 1"), "my node") == (1,)
     # a node may be terminated by its parent's closing brace
     @test parse_doc("parent { child }").parent.child isa KDLNode
-    # duplicate node names: last one wins (dict semantics)
+    # duplicate node names: the last occurrence wins on a field read
     @test argkeys(parse_doc("foo 1\nfoo 2"), :foo) == (2,)
 end
 

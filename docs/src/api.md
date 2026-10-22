@@ -32,6 +32,7 @@ KDLParseError
 ## Navigating and reading
 
 ```@docs
+Base.nameof(k::KDLNode)
 Base.getindex(k::KDLNode, i::Integer)
 Base.getindex(k::KDLNode, key::Union{Symbol,AbstractString})
 Base.getproperty(k::KDLNode, name::Symbol)
@@ -50,6 +51,17 @@ Base.push!(k::KDLNode, v)
 Base.empty!(k::KDLNode)
 Base.merge(j::KDLNode, k::KDLNode)
 Base.merge!(j::KDLNode, k::KDLNode)
+```
+
+## Querying
+
+```@docs
+@query
+KDLQuery
+KDLQueryError
+query
+@query_str
+@query_cmd
 ```
 
 ## Serialising
