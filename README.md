@@ -2,7 +2,7 @@
 
 A parser for the [KDL Document Language](https://kdl.dev), using
 [PikaMacros](https://github.com/impact-basin/PikaMacros.jl) and
-[PikaParser](https://github.com/LCSB-BioCore/PikaParser.jl).
+[PikaParser](https://github.com/LCSB-BioCore/PikaParser.jl). Originally just a testbed for PikaMacros, this package may have accidentally become useful.
 
 This repo is verified against the test cases in [kdl-test](https://github.com/kdl-org/kdl-test) under CI.
 
