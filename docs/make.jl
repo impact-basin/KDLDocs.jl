@@ -1,10 +1,5 @@
-# Build the documentation with Documenter.jl.
-#
+# Reminder: to build, run
 #     julia --project=docs docs/make.jl
-#
-# The site is built by .github/workflows/Documentation.yml and deployed to
-# GitHub Pages from the repository named in `deploydocs` below.  Change the
-# owner there if the mirror moves.
 
 using Documenter
 using KDLDocs
@@ -22,7 +17,6 @@ makedocs(
     ),
     pages = [
         "Home" => "index.md",
-        "Usage" => "usage.md",
         "API Reference" => "api.md",
     ],
 )

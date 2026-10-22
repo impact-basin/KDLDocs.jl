@@ -45,7 +45,7 @@ foo 1 2 3 {
 
 KQL allows for querying documents via [`@query`](@ref):
 
-```jldoctest; setup = :(using KDLDocs)
+```julia-repl
 julia> doc = kdl"""
        package {
            name my_pkg
@@ -53,15 +53,15 @@ julia> doc = kdl"""
        """;
 
 julia> @query doc package
-1-element Vector{KDLNode}:
- package {
-        name my_pkg 
- }
+ 1-element Vector{KDLNode}:
+  package {
+         name my_pkg 
+}
 ```
 
 A `begin ... end` block runs several queries and returns a tuple:
 
-```jldoctest; setup = :(using KDLDocs)
+```julia-repl
 julia> doc = kdl"""foo 1 2 3 {
     bar "baz" extra symbol arguments
     baz 7 8 9 {
